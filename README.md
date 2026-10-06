@@ -2,6 +2,9 @@
 
 > [pi-gui](https://github.com/minghinmatthewlam/pi-gui) 的简体中文汉化分支，桌面端界面全中文，开箱即用。
 
+> [!WARNING]
+> **非官方汉化版**：本项目是社区个人维护的第三方汉化分支，**与上游 pi-gui 作者、pi（Earendil Works）官方无任何隶属、赞助或背书关系**，请勿将其视为官方产物。上游版权归原作者所有，详见 [NOTICE](./NOTICE)。
+
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![Platform](https://img.shields.io/badge/platform-Windows-x64-0078D4)](https://github.com/kevinx-key/pi-gui-zh/releases/latest)
 [![Upstream](https://img.shields.io/badge/upstream-minghinmatthewlam%2Fpi--gui-lightgrey)](https://github.com/minghinmatthewlam/pi-gui)
@@ -108,8 +111,10 @@ git merge upstream/main
 
 ## 许可与致谢
 
-- 本项目基于 [pi-gui](https://github.com/minghinmatthewlam/pi-gui)（作者 Matthew Lam，MIT License）汉化，保留原作者版权与许可。
-- 底层 Agent 为 [pi](https://github.com/earendil-works/pi)。
-- 本项目同样以 [MIT License](./LICENSE) 发布。
+- 本项目基于 [pi-gui](https://github.com/minghinmatthewlam/pi-gui)（作者 Matthew Lam）汉化，**上游版权归原作者所有**。
+- 底层 Agent 为 [pi](https://github.com/earendil-works/pi)（Earendil Works），版权归其所有。
+- 本项目同样以 [MIT License](./LICENSE) 发布；完整署名与第三方组件说明见 [NOTICE](./NOTICE)。
+
+> 本项目为**非官方**第三方分支，未获上游作者或 Earendil Works 的赞助或背书。
 
 欢迎提 Issue / PR 修正译文。

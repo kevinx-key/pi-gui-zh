@@ -873,4 +873,41 @@ export const zhCN: Readonly<Record<string, string>> = {
   // ── Diff ──────────────────────────────────────────────
   "{count} unmodified line": "未修改 {count} 行",
   "{count} unmodified lines": "未修改 {count} 行",
+
+  // ── Native (main process) ─────────────────────────────
+  "Agent finished responding": "智能体已完成回复",
+  "Check for Updates…": "检查更新…",
+  "Check the link before you open it:": "打开前请检查此链接：",
+  "Copy link": "复制链接",
+  "Could not check for updates right now.": "目前无法检查更新。",
+  Download: "下载",
+  Error: "错误",
+  File: "文件",
+  "Force Reload": "强制重新加载",
+  "GitHub Releases did not return any published versions.":
+    "GitHub Releases 未返回任何已发布版本。",
+  "GitHub Releases returned an unreadable response.": "GitHub Releases 返回了无法读取的响应。",
+  "GitHub Releases returned {status}.": "GitHub Releases 返回了 {status}。",
+  Later: "稍后",
+  "Needs your input": "需要你的输入",
+  "New Thread": "新建线程",
+  "New Window": "新建窗口",
+  "No stable pi-gui release has been published yet.": "尚未发布稳定的 pi-gui 版本。",
+  OK: "确定",
+  "Open Folder…": "打开文件夹…",
+  "Open this MCP sign-in link yourself": "请自行打开此 MCP 登录链接",
+  "Open workspace folder": "打开工作区文件夹",
+  "pi session": "pi 会话",
+  "pi-gui could not open your browser.": "pi-gui 无法打开你的浏览器。",
+  "pi-gui opens only https links, or http links on this computer.":
+    "pi-gui 仅打开 https 链接，或本机上的 http 链接。",
+  "pi-gui Release Available": "pi-gui 有可用版本",
+  "The update check could not reach GitHub.": "更新检查无法连接到 GitHub。",
+  "The update check timed out.": "更新检查超时。",
+  "Version {version} is available (you have {current}). Click to view the release.":
+    "版本 {version} 已可用（你当前是 {current}）。点击查看此版本。",
+  "Version {version} is available.": "版本 {version} 已可用。",
+  View: "视图",
+  "You have {version}.": "你当前是 {version}。",
+  "You're up to date on version {version}.": "你已是最新版本 {version}。",
 };

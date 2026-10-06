@@ -3,6 +3,7 @@ import { appendFile, mkdir } from "node:fs/promises";
 import { dirname } from "node:path";
 import type { DesktopAppStore } from "../application/app-store";
 import type { NotificationPermissionService } from "./notification-permission";
+import { t } from "../../contracts/i18n";
 import type { DesktopAppState } from "../../contracts/desktop-state";
 import { sessionKey } from "@pi-gui/session-driver";
 import type { SessionDriverEvent, SessionRef } from "@pi-gui/session-driver";
@@ -150,7 +151,7 @@ export class NotificationManager {
       await this.showNotification(
         event.sessionRef,
         event.snapshot.title,
-        "Agent finished responding",
+        t("Agent finished responding"),
       );
       return;
     }
@@ -422,7 +423,7 @@ export class NotificationManager {
   }
 
   private titleForSession(sessionRef: SessionRef): string {
-    return this.sessionFromLatestState(sessionRef)?.title ?? "pi session";
+    return this.sessionFromLatestState(sessionRef)?.title ?? t("pi session");
   }
 }
 
@@ -439,7 +440,7 @@ function requiresAttention(event: Extract<SessionDriverEvent, { type: "hostUiReq
 
 function hostUiBody(event: Extract<SessionDriverEvent, { type: "hostUiRequest" }>): string {
   if (event.request.kind === "notify") {
-    return `${event.request.level === "error" ? "Error" : "Warning"}: ${event.request.message}`;
+    return `${event.request.level === "error" ? t("Error") : t("Warning")}: ${event.request.message}`;
   }
   if (
     event.request.kind === "confirm" ||
@@ -448,7 +449,7 @@ function hostUiBody(event: Extract<SessionDriverEvent, { type: "hostUiRequest" }
   ) {
     return event.request.title;
   }
-  return "Needs your input";
+  return t("Needs your input");
 }
 
 function sameSessionRef(left: SessionRef | undefined, right: SessionRef | undefined): boolean {

@@ -54,6 +54,7 @@ import { NotificationManager } from "./platform/notification-manager";
 import { NotificationPermissionService } from "./platform/notification-permission";
 import { checkForUpdate, initUpdateChecker, openReleasesPage } from "./platform/update-checker";
 import { ThemeManager } from "./platform/theme-manager";
+import { t } from "../contracts/i18n";
 import { windowBackgroundFor } from "../contracts/theme";
 import { TerminalService } from "./platform/terminal-service";
 import type { DesktopAppState, DesktopAppViewState } from "../contracts/desktop-state";
@@ -351,12 +352,12 @@ function openMcpSignInUrl(url: string): void {
     console.error(
       `Refusing to open an MCP sign-in URL${parsed ? ` on ${parsed.origin}` : " that is not http or https"}`,
     );
-    showMcpSignInUrl(url, "pi-gui opens only https links, or http links on this computer.");
+    showMcpSignInUrl(url, t("pi-gui opens only https links, or http links on this computer."));
     return;
   }
   shell.openExternal(parsed.toString()).catch((error: unknown) => {
     console.error(`Failed to open an MCP sign-in URL on ${parsed.origin}`, error);
-    showMcpSignInUrl(parsed.toString(), "pi-gui could not open your browser.");
+    showMcpSignInUrl(parsed.toString(), t("pi-gui could not open your browser."));
   });
 }
 
@@ -366,9 +367,9 @@ function showMcpSignInUrl(url: string, reason: string): void {
   const options: MessageBoxOptions = {
     type: "warning",
     title: "pi-gui",
-    message: "Open this MCP sign-in link yourself",
-    detail: `${reason} Check the link before you open it:\n\n${url}`,
-    buttons: ["Copy link", "Close"],
+    message: t("Open this MCP sign-in link yourself"),
+    detail: `${reason} ${t("Check the link before you open it:")}\n\n${url}`,
+    buttons: [t("Copy link"), t("Close")],
     defaultId: 0,
     cancelId: 1,
   };
@@ -721,11 +722,11 @@ async function pickWorkspacePathViaDialog(
   const result = window
     ? await dialog.showOpenDialog(window, {
         properties: ["openDirectory"],
-        title: "Open workspace folder",
+        title: t("Open workspace folder"),
       })
     : await dialog.showOpenDialog({
         properties: ["openDirectory"],
-        title: "Open workspace folder",
+        title: t("Open workspace folder"),
       });
   if (result.canceled || result.filePaths.length === 0) {
     return undefined;
@@ -774,9 +775,9 @@ async function runManualUpdateCheck(): Promise<void> {
       const choice = await showDialog({
         type: "info",
         title: "pi-gui",
-        message: `Version ${result.latestVersion} is available.`,
-        detail: `You have ${result.currentVersion}.`,
-        buttons: ["Download", "Later"],
+        message: t("Version {version} is available.", { version: result.latestVersion }),
+        detail: t("You have {version}.", { version: result.currentVersion }),
+        buttons: [t("Download"), t("Later")],
         defaultId: 0,
         cancelId: 1,
       });
@@ -790,8 +791,8 @@ async function runManualUpdateCheck(): Promise<void> {
       await showDialog({
         type: "info",
         title: "pi-gui",
-        message: `You're up to date on version ${result.currentVersion}.`,
-        buttons: ["OK"],
+        message: t("You're up to date on version {version}.", { version: result.currentVersion }),
+        buttons: [t("OK")],
       });
       return;
     }
@@ -799,18 +800,18 @@ async function runManualUpdateCheck(): Promise<void> {
     await showDialog({
       type: "warning",
       title: "pi-gui",
-      message: "Could not check for updates right now.",
+      message: t("Could not check for updates right now."),
       detail: result.message,
-      buttons: ["OK"],
+      buttons: [t("OK")],
     });
   } catch (error) {
     console.error("pi-gui: manual update check failed:", error);
     await showDialog({
       type: "warning",
       title: "pi-gui",
-      message: "Could not check for updates right now.",
+      message: t("Could not check for updates right now."),
       detail: error instanceof Error ? error.message : String(error),
-      buttons: ["OK"],
+      buttons: [t("OK")],
     }).catch(() => undefined);
   }
 }
@@ -828,7 +829,7 @@ function installApplicationMenu(): void {
         { type: "separator" },
         {
           id: CHECK_FOR_UPDATES_MENU_ITEM_ID,
-          label: "Check for Updates…",
+          label: t("Check for Updates…"),
           click: () => {
             void runManualUpdateCheck().catch((error: unknown) => {
               console.error("[main] runManualUpdateCheck failed", error);
@@ -846,10 +847,10 @@ function installApplicationMenu(): void {
       ],
     },
     {
-      label: "File",
+      label: t("File"),
       submenu: [
         {
-          label: "New Thread",
+          label: t("New Thread"),
           accelerator: "CommandOrControl+N",
           click: () => {
             const window = BrowserWindow.getFocusedWindow() ?? mainWindow;
@@ -858,7 +859,7 @@ function installApplicationMenu(): void {
         },
         {
           id: NEW_WINDOW_MENU_ITEM_ID,
-          label: "New Window",
+          label: t("New Window"),
           accelerator: "CommandOrControl+Shift+N",
           click: () => {
             createAppWindow(windowOwner.foregroundView());
@@ -867,7 +868,7 @@ function installApplicationMenu(): void {
         { type: "separator" },
         {
           id: OPEN_FOLDER_MENU_ITEM_ID,
-          label: "Open Folder…",
+          label: t("Open Folder…"),
           accelerator: "Command+O",
           click: () => {
             void pickWorkspaceViaDialog(mainWindow).catch((error: unknown) => {
@@ -881,16 +882,16 @@ function installApplicationMenu(): void {
     },
     { role: "editMenu" },
     {
-      label: "View",
+      label: t("View"),
       submenu: [
         // Cmd+R toggles Review and Shift+Cmd+R renames the thread, so neither
         // reload has a shortcut.
         {
-          label: "Reload",
+          label: t("Reload"),
           click: () => BrowserWindow.getFocusedWindow()?.webContents.reload(),
         },
         {
-          label: "Force Reload",
+          label: t("Force Reload"),
           click: () => BrowserWindow.getFocusedWindow()?.webContents.reloadIgnoringCache(),
         },
         { role: "toggleDevTools" },
@@ -1204,11 +1205,11 @@ app
           const result = parent
             ? await dialog.showOpenDialog(parent, {
                 properties: ["openFile", "multiSelections"],
-                title: "Attach files",
+                title: t("Attach files"),
               })
             : await dialog.showOpenDialog({
                 properties: ["openFile", "multiSelections"],
-                title: "Attach files",
+                title: t("Attach files"),
               });
           if (result.canceled || result.filePaths.length === 0) {
             return undefined;
@@ -1560,8 +1561,8 @@ function promptDataUrl(message: string, placeholder: string): string {
   <div class="msg">${escapeHtml(message)}</div>
   <input id="pi-prompt-input" type="text" placeholder="${escapeHtml(placeholder)}" autofocus />
   <div class="row">
-    <button id="pi-prompt-cancel" type="button">Cancel</button>
-    <button id="pi-prompt-ok" type="button">OK</button>
+    <button id="pi-prompt-cancel" type="button">${t("Cancel")}</button>
+    <button id="pi-prompt-ok" type="button">${t("OK")}</button>
   </div>
   <script>
     (function () {

@@ -1,9 +1,11 @@
 import type { ThemeMode, ThemePresetId } from "../../../contracts/desktop-state";
-import { SettingsSelect, SettingsSwitch } from "./settings-controls";
+import { uiLocales, type MessageKey, type UiLocale } from "../../../contracts/i18n";
+import { SettingsSegmented, SettingsSelect, SettingsSwitch } from "./settings-controls";
 import { SettingsGroup, SettingsRow } from "./settings-utils";
 import type { CSSProperties } from "react";
 import { themePreset, themePresets, themeSwatches, themeTokensFor } from "../../../contracts/theme";
 import { useActiveTheme } from "../../ui/active-theme";
+import { setActiveLocale, useLocale, useT } from "../../i18n/i18n";
 
 interface SettingsAppearanceSectionProps {
   readonly themeMode: ThemeMode;
@@ -20,6 +22,11 @@ const THEME_MODES: readonly { readonly mode: ThemeMode; readonly label: string }
   { mode: "dark", label: "Dark" },
 ];
 
+const LOCALE_LABELS: Readonly<Record<UiLocale, MessageKey>> = {
+  "zh-CN": "locale.zh-CN",
+  "en-US": "locale.en-US",
+};
+
 export function SettingsAppearanceSection({
   themeMode,
   themePresetId,
@@ -30,8 +37,24 @@ export function SettingsAppearanceSection({
 }: SettingsAppearanceSectionProps) {
   const activePreset = themePreset(themePresetId);
   const { variant } = useActiveTheme();
+  const locale = useLocale();
+  const t = useT();
   return (
     <>
+      <SettingsGroup>
+        <SettingsRow
+          title={t("settings.appearance.language")}
+          description={t("settings.appearance.language.description")}
+        >
+          <SettingsSegmented
+            label={t("settings.appearance.language")}
+            options={uiLocales.map((value) => ({ value, label: t(LOCALE_LABELS[value]) }))}
+            value={locale}
+            onChange={setActiveLocale}
+          />
+        </SettingsRow>
+      </SettingsGroup>
+
       <SettingsGroup title="Theme" plain>
         <div
           aria-label="Theme"

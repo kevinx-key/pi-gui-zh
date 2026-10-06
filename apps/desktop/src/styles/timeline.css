@@ -893,6 +893,7 @@
 
 /* Search belongs above the viewport, not inside its scroll coordinates. */
 .timeline-column {
+  position: relative;
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -1096,4 +1097,48 @@
 
 .timeline-tool__image img {
   object-fit: contain;
+}
+
+/* ---- Message rail ------------------------------------------------------- */
+
+/*
+ * Bookmarks for the messages the user sent, one per message, positioned by its share of
+ * the transcript. It sits in the pane's right padding so it touches neither the text nor
+ * the scrollbar, and carries no text of its own.
+ */
+.message-rail {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  right: var(--scrollbar-size);
+  width: 14px;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.message-rail__mark {
+  position: absolute;
+  right: 2px;
+  width: 10px;
+  height: 3px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--muted-subtle);
+  pointer-events: auto;
+}
+
+.message-rail__mark:hover,
+.message-rail__mark:focus-visible {
+  background: var(--accent);
+  outline: none;
+}
+
+/* The transcript's right-click menu: shared menu visuals, placed at the pointer. */
+.transcript-menu {
+  position: fixed;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  z-index: 90;
 }

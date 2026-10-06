@@ -19,6 +19,8 @@ import type { AnnotationMarker, OpenAnnotation } from "./annotations/annotation-
 import { useAnnotationSelection } from "./annotations/annotation-selection";
 import type { TranscriptAnnotations } from "./annotations/use-transcript-annotations";
 import { ThreadSearchBar } from "./thread-search";
+import { MessageRail, type MessageRailAnchor } from "./message-rail";
+import { useTranscriptMenu } from "./transcript-menu";
 import type { RunExtensionAction } from "./extension-card";
 import { TimelineItem } from "./timeline-item";
 import { sameRowContent, type TimelineRow } from "./timeline-layout";
@@ -76,6 +78,7 @@ export function ConversationTimeline({
 }: ConversationTimelineProps) {
   const t = useT();
   const surfaceRef = useRef<HTMLDivElement | null>(null);
+  const transcriptMenu = useTranscriptMenu();
   const annotationSelection = useAnnotationSelection({
     paneRef: surfaceRef,
     annotations,
@@ -120,6 +123,16 @@ export function ConversationTimeline({
     for (const item of transcript) if (item.kind === "message") indices.set(item.id, index++);
     return indices;
   }, [transcript]);
+  // One bookmark per message the user sent, positioned by its share of the transcript.
+  const messageAnchors = useMemo(() => {
+    const anchors: MessageRailAnchor[] = [];
+    for (const row of viewport.layout) {
+      if (row.item.kind === "message" && row.item.role === "user") {
+        anchors.push({ id: row.item.id, top: row.top });
+      }
+    }
+    return anchors;
+  }, [viewport.layout]);
   return (
     <ExtensionToolLabelsContext.Provider value={extensionToolLabels}>
       <div className="timeline-surface" ref={surfaceRef}>
@@ -139,6 +152,7 @@ export function ConversationTimeline({
           <div
             className="timeline-pane timeline-pane--thread"
             data-testid="timeline-pane"
+            onContextMenu={transcriptMenu.openContextMenu}
             ref={viewport.attachPane}
             tabIndex={0}
           >
@@ -207,7 +221,13 @@ export function ConversationTimeline({
               </button>
             ) : null}
           </div>
+          <MessageRail
+            anchors={messageAnchors}
+            onSelect={viewport.navigateToRow}
+            totalHeight={viewport.totalHeight}
+          />
         </div>
+        {transcriptMenu.menu}
         {annotationSelection.layer}
       </div>
     </ExtensionToolLabelsContext.Provider>

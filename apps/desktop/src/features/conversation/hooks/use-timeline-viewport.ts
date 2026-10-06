@@ -422,9 +422,26 @@ export function useTimelineViewport({
     },
     [paneRef, schedule],
   );
+  const navigateToRow = useCallback(
+    (rowId: string) => {
+      const pane = paneRef.current;
+      const row = model.current.layout.find((candidate) => candidate.item.id === rowId);
+      if (!pane || !row) return;
+      // Same intent as navigateToElement, addressed by row instead of by element: the
+      // target of a rail jump is usually virtualized away and has no element to measure.
+      const top = Math.max(0, row.top + row.height / 2 - pane.clientHeight / 2);
+      const anchor = anchorAt(model.current.layout, top);
+      if (anchor) model.current.state = { kind: "reading", anchor };
+      model.current.pendingNavigation = true;
+      model.current.userIntent = 0;
+      schedule();
+    },
+    [paneRef, schedule],
+  );
   return {
     totalHeight,
     visibleRows: placements,
+    layout,
     layoutGeneration: current.generation,
     showJumpToLatest,
     attachPane,
@@ -432,6 +449,7 @@ export function useTimelineViewport({
     savePosition,
     jumpToLatest,
     navigateToElement,
+    navigateToRow,
     setSearchMode,
   };
 }

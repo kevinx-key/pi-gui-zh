@@ -3,6 +3,7 @@ import type { RuntimeSnapshot } from "@pi-gui/session-driver/runtime-types";
 import type { ModelSettingsScopeMode } from "../../../contracts/desktop-state";
 import { SettingsSegmented, SettingsSwitch } from "./settings-controls";
 import { SettingsGroup, SettingsRow } from "./settings-utils";
+import { useT } from "../../i18n/i18n";
 
 interface SettingsGeneralSectionProps {
   readonly runtime?: RuntimeSnapshot;
@@ -21,6 +22,7 @@ export function SettingsGeneralSection({
   onSetIntegratedTerminalShell,
   onToggleSkillCommands,
 }: SettingsGeneralSectionProps) {
+  const t = useT();
   const [terminalShellDraft, setTerminalShellDraft] = useState(integratedTerminalShell);
 
   useEffect(() => {
@@ -35,40 +37,44 @@ export function SettingsGeneralSection({
 
   return (
     <>
-      <SettingsGroup title="Agent">
+      <SettingsGroup title={t("Agent")}>
         <SettingsRow
-          title="Model settings scope"
-          description="Apply the default model and enabled models everywhere, or set them per repo."
+          title={t("Model settings scope")}
+          description={t(
+            "Apply the default model and enabled models everywhere, or set them per repo.",
+          )}
         >
           <SettingsSegmented
-            label="Model settings scope"
+            label={t("Model settings scope")}
             options={[
-              { value: "app-global", label: "App global" },
-              { value: "per-repo", label: "Per repo" },
+              { value: "app-global", label: t("App global") },
+              { value: "per-repo", label: t("Per repo") },
             ]}
             value={modelSettingsScopeMode}
             onChange={onSetModelSettingsScopeMode}
           />
         </SettingsRow>
         <SettingsRow
-          title="Skill slash commands"
-          description="Offer each skill as a slash command in the composer."
+          title={t("Skill slash commands")}
+          description={t("Offer each skill as a slash command in the composer.")}
         >
           <SettingsSwitch
             checked={runtime?.settings.enableSkillCommands ?? true}
-            label="Enable skill slash commands"
+            label={t("Enable skill slash commands")}
             onChange={onToggleSkillCommands}
           />
         </SettingsRow>
       </SettingsGroup>
 
-      <SettingsGroup title="Terminal">
+      <SettingsGroup title={t("Terminal")}>
         <SettingsRow
-          title="Shell"
-          description="The shell the integrated terminal starts. Leave blank to use your login shell."
+          title={t("Shell")}
+          description={t(
+            "The shell the integrated terminal starts. Leave blank to use your login shell.",
+          )}
         >
           <input
-            aria-label="Shell of integrated terminal"
+            aria-label={t("Shell of integrated terminal")}
             className="settings-text-input"
             placeholder="/bin/zsh"
             spellCheck={false}

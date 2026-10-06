@@ -1,11 +1,7 @@
-import { enUS } from "./locales/en-US";
 import { zhCN } from "./locales/zh-CN";
 import { isUiLocale, type UiLocale } from "./types";
 
 export { isUiLocale, uiLocales, type UiLocale } from "./types";
-
-/** Every message key the app can ask for; English is the source of the key set. */
-export type MessageKey = keyof typeof enUS;
 
 /** Values interpolated into a message via `{name}` placeholders. */
 export type MessageParams = Readonly<Record<string, string | number>>;
@@ -15,13 +11,14 @@ export type MessageParams = Readonly<Record<string, string | number>>;
  * React renderer import this module (it lives under `contracts/` so neither process
  * owns it), so it must stay free of React and Node/Electron APIs.
  *
- * The active locale is process-global state with a tiny subscribe API; the renderer
- * binds it to React with `useSyncExternalStore`, and main reads it directly for
- * native dialogs and notifications.
+ * Translation model: the English source string IS the key. `t("Interface language")`
+ * looks the string up in the active locale's dictionary and falls back to the source
+ * string when a translation is missing. English therefore needs no dictionary, and a
+ * string that upstream rewords simply falls back to English instead of going blank.
  */
 
-const catalogs: Readonly<Record<UiLocale, Partial<Record<MessageKey, string>>>> = {
-  "en-US": enUS,
+const dictionaries: Readonly<Record<UiLocale, Readonly<Record<string, string>>>> = {
+  "en-US": {},
   "zh-CN": zhCN,
 };
 
@@ -48,9 +45,9 @@ export function subscribeLocale(listener: () => void): () => void {
   };
 }
 
-/** Resolves a message for the active locale, falling back to English, then the key. */
-export function t(key: MessageKey, params?: MessageParams): string {
-  const message = catalogs[currentLocale][key] ?? catalogs["en-US"][key] ?? key;
+/** Translates an English source string, falling back to the source itself. */
+export function t(source: string, params?: MessageParams): string {
+  const message = dictionaries[currentLocale][source] ?? source;
   return params ? interpolate(message, params) : message;
 }
 

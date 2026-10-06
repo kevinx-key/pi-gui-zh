@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { SearchIcon } from "../ui/icons";
+import { useT } from "../i18n/i18n";
 
 export interface SecondarySurfaceNavItem {
   readonly id: string;
@@ -89,6 +90,7 @@ function SecondarySurfaceNav({
   readonly searchLabel: string;
   readonly onSelect: (id: string) => void;
 }) {
+  const t = useT();
   const [query, setQuery] = useState("");
   const matches = filterNavItems(items, query);
   const groups = [...new Set(matches.map((item) => item.group))];
@@ -119,7 +121,7 @@ function SecondarySurfaceNav({
       <nav aria-label={label} className="secondary-surface__nav">
         {groups.map((group) => (
           <div className="secondary-surface__nav-group" key={group}>
-            <div className="secondary-surface__nav-group-label">{group}</div>
+            <div className="secondary-surface__nav-group-label">{t(group)}</div>
             {matches
               .filter((item) => item.group === group)
               .map((item) => (
@@ -131,7 +133,7 @@ function SecondarySurfaceNav({
                   onClick={() => onSelect(item.id)}
                 >
                   <span className="secondary-surface__nav-icon">{item.icon}</span>
-                  <span>{item.title}</span>
+                  <span>{t(item.title)}</span>
                 </button>
               ))}
           </div>

@@ -3,6 +3,7 @@ import type {
   RuntimeSettingsSnapshot,
   RuntimeSnapshot,
 } from "@pi-gui/session-driver/runtime-types";
+import { useT } from "../../i18n/i18n";
 
 export const THINKING_LEVELS: NonNullable<RuntimeSettingsSnapshot["defaultThinkingLevel"]>[] = [
   "low",
@@ -105,6 +106,7 @@ export function ProviderRow({
   readonly onLogoutProvider: (providerId: string) => void;
   readonly onConfigureApiKey: (provider: RuntimeSnapshot["providers"][number]) => void;
 }) {
+  const t = useT();
   const actions = resolveProviderActions(
     provider,
     onLoginProvider,
@@ -115,7 +117,7 @@ export function ProviderRow({
     <div className="settings-row">
       <div className="settings-row__label">
         <div className="settings-row__title">{provider.name}</div>
-        <div className="settings-row__description">{describeProviderStatus(provider)}</div>
+        <div className="settings-row__description">{t(describeProviderStatus(provider))}</div>
       </div>
       {actions.length > 0 ? (
         <div className="settings-row__actions">
@@ -127,7 +129,7 @@ export function ProviderRow({
               type="button"
               onClick={action.onClick}
             >
-              {action.label}
+              {t(action.label)}
             </button>
           ))}
         </div>

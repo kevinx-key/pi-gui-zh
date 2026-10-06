@@ -4,6 +4,7 @@ import { SearchIcon } from "../../ui/icons";
 import type { CustomProviderConfig } from "../../../contracts/ipc";
 import { SettingsCustomEndpointsSection } from "./settings-custom-endpoints-section";
 import { filterProviders, ProviderRow, SettingsGroup } from "./settings-utils";
+import { useT } from "../../i18n/i18n";
 
 interface SettingsProvidersSectionProps {
   readonly runtime?: RuntimeSnapshot;
@@ -33,6 +34,7 @@ export function SettingsProvidersSection({
   onSaveCustomProvider,
   onDeleteCustomProvider,
 }: SettingsProvidersSectionProps) {
+  const t = useT();
   const [providerQuery, setProviderQuery] = useState("");
   const [showAllAvailable, setShowAllAvailable] = useState(false);
   const [apiKeyProviderId, setApiKeyProviderId] = useState<string | undefined>();
@@ -112,8 +114,8 @@ export function SettingsProvidersSection({
     <>
       {attentionProviders.length > 0 ? (
         <SettingsGroup
-          title="Needs attention"
-          description="Your default model uses this provider, but it is not connected."
+          title={t("Needs attention")}
+          description={t("Your default model uses this provider, but it is not connected.")}
         >
           {attentionProviders.map((provider) => (
             <ProviderRow key={provider.id} provider={provider} {...rowHandlers} />
@@ -123,10 +125,10 @@ export function SettingsProvidersSection({
 
       <section className="settings-section">
         <h3 className="settings-section__title">
-          Connected <span className="resource-list__count">{connectedProviders.length}</span>
+          {t("Connected")} <span className="resource-list__count">{connectedProviders.length}</span>
         </h3>
         <p className="settings-section__description">
-          pi picks models from connected providers first.
+          {t("pi picks models from connected providers first.")}
         </p>
         <div className="settings-group">
           {connectedProviders.length > 0 ? (
@@ -136,7 +138,7 @@ export function SettingsProvidersSection({
           ) : (
             <div className="settings-row">
               <span className="settings-row__description">
-                No providers connected yet. Sign in or add an API key below.
+                {t("No providers connected yet. Sign in or add an API key below.")}
               </span>
             </div>
           )}
@@ -152,13 +154,14 @@ export function SettingsProvidersSection({
       <section className="settings-section">
         <div className="settings-section__header">
           <h3 className="settings-section__title">
-            Available <span className="resource-list__count">{availableProviders.length}</span>
+            {t("Available")}{" "}
+            <span className="resource-list__count">{availableProviders.length}</span>
           </h3>
           <label className="resource-search">
             <SearchIcon />
             <input
-              aria-label="Search providers"
-              placeholder="Search providers"
+              aria-label={t("Search providers")}
+              placeholder={t("Search providers")}
               spellCheck={false}
               type="search"
               value={providerQuery}
@@ -167,7 +170,7 @@ export function SettingsProvidersSection({
           </label>
         </div>
         <p className="settings-section__description">
-          Sign in with OAuth or save an API key to connect a provider.
+          {t("Sign in with OAuth or save an API key to connect a provider.")}
         </p>
         <div className="settings-group" data-testid="settings-available-providers">
           {shownAvailable.length > 0 ? (
@@ -178,8 +181,8 @@ export function SettingsProvidersSection({
             <div className="settings-row">
               <span className="settings-row__description">
                 {providerQuery.trim()
-                  ? `No providers match “${providerQuery.trim()}”.`
-                  : "Every provider is connected."}
+                  ? t("No providers match “{query}”.", { query: providerQuery.trim() })
+                  : t("Every provider is connected.")}
               </span>
             </div>
           )}
@@ -190,7 +193,7 @@ export function SettingsProvidersSection({
             type="button"
             onClick={() => setShowAllAvailable(true)}
           >
-            Show {hiddenAvailableCount} more
+            {t("Show {count} more", { count: hiddenAvailableCount })}
           </button>
         ) : null}
       </section>
@@ -230,11 +233,12 @@ function ProviderApiKeyDialog({
   readonly onRemove?: () => Promise<void>;
   readonly onSave: () => Promise<void>;
 }) {
-  const title = provider.authSource === "auth_file" ? "Manage API key" : "Set API key";
+  const t = useT();
+  const title = provider.authSource === "auth_file" ? t("Manage API key") : t("Set API key");
   const body =
     provider.authSource === "auth_file"
-      ? `Replace or remove the saved API key for ${provider.name}.`
-      : `Save an API key locally for ${provider.name}.`;
+      ? t("Replace or remove the saved API key for {name}.", { name: provider.name })
+      : t("Save an API key locally for {name}.", { name: provider.name });
 
   return (
     <div className="extension-dialog-backdrop">
@@ -242,11 +246,11 @@ function ProviderApiKeyDialog({
         <div className="extension-dialog__title">{title}</div>
         <p className="extension-dialog__body">{body}</p>
         <input
-          aria-label={`${provider.name} API key`}
+          aria-label={t("{name} API key", { name: provider.name })}
           autoFocus
           className="settings-search"
           disabled={pending}
-          placeholder="Enter API key"
+          placeholder={t("Enter API key")}
           type="password"
           value={draft}
           onChange={(event) => onChangeDraft(event.target.value)}
@@ -272,7 +276,7 @@ function ProviderApiKeyDialog({
             type="button"
             onClick={onClose}
           >
-            Cancel
+            {t("Cancel")}
           </button>
           {onRemove ? (
             <button
@@ -285,7 +289,7 @@ function ProviderApiKeyDialog({
                 })
               }
             >
-              Remove saved key
+              {t("Remove saved key")}
             </button>
           ) : null}
           <button
@@ -298,7 +302,7 @@ function ProviderApiKeyDialog({
               })
             }
           >
-            {provider.authSource === "auth_file" ? "Save key" : "Set API key"}
+            {provider.authSource === "auth_file" ? t("Save key") : t("Set API key")}
           </button>
         </div>
       </div>

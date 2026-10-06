@@ -2,6 +2,7 @@ import type { DesktopNotificationPermissionStatus } from "../../../contracts/ipc
 import type { NotificationPreferences } from "../../../contracts/desktop-state";
 import { SettingsSwitch } from "./settings-controls";
 import { SettingsGroup, SettingsRow } from "./settings-utils";
+import { useT } from "../../i18n/i18n";
 
 interface SettingsNotificationsSectionProps {
   readonly notificationPreferences: NotificationPreferences;
@@ -20,6 +21,7 @@ export function SettingsNotificationsSection({
   onRequestNotificationPermission,
   onOpenSystemNotificationSettings,
 }: SettingsNotificationsSectionProps) {
+  const t = useT();
   const statusLabel = labelForPermissionStatus(notificationPermissionStatus);
   const statusDescription = descriptionForPermissionStatus(notificationPermissionStatus);
   const showAskMacOs = notificationPermissionStatus === "default";
@@ -29,19 +31,23 @@ export function SettingsNotificationsSection({
   return (
     <>
       <SettingsGroup
-        title="System"
-        description="macOS decides whether pi-gui can show desktop notifications at all."
+        title={t("System notifications")}
+        description={t("macOS decides whether pi-gui can show desktop notifications at all.")}
       >
-        <SettingsRow title="macOS notification access" description={statusDescription}>
-          <span className="settings-row__value">{statusLabel}</span>
+        <SettingsRow title={t("macOS notification access")} description={t(statusDescription)}>
+          <span className="settings-row__value">{t(statusLabel)}</span>
         </SettingsRow>
         {showRecoveryActions ? (
           <SettingsRow
-            title="Turn on notifications"
+            title={t("Turn on notifications")}
             description={
               showAskMacOs
-                ? "pi-gui asks macOS when active work first moves into the background. You can also ask now."
-                : "macOS notifications are already turned off for pi-gui. Open System Settings to enable them again."
+                ? t(
+                    "pi-gui asks macOS when active work first moves into the background. You can also ask now.",
+                  )
+                : t(
+                    "macOS notifications are already turned off for pi-gui. Open System Settings to enable them again.",
+                  )
             }
           >
             <div className="settings-row__actions">
@@ -52,7 +58,7 @@ export function SettingsNotificationsSection({
                   type="button"
                   onClick={onRequestNotificationPermission}
                 >
-                  Ask macOS
+                  {t("Ask macOS")}
                 </button>
               ) : null}
               {showOpenSystemSettings ? (
@@ -62,7 +68,7 @@ export function SettingsNotificationsSection({
                   type="button"
                   onClick={onOpenSystemNotificationSettings}
                 >
-                  Open System Settings
+                  {t("Open System Settings")}
                 </button>
               ) : null}
             </div>
@@ -71,36 +77,38 @@ export function SettingsNotificationsSection({
       </SettingsGroup>
 
       <SettingsGroup
-        title="In-app alerts"
-        description="Choose which background events should try to notify once macOS access is enabled."
+        title={t("In-app alerts")}
+        description={t(
+          "Choose which background events should try to notify once macOS access is enabled.",
+        )}
       >
         <SettingsRow
-          title="Background completion"
-          description="Notify when a background session finishes."
+          title={t("Background completion")}
+          description={t("Notify when a background session finishes.")}
         >
           <SettingsSwitch
             checked={notificationPreferences.backgroundCompletion}
-            label="Background completion"
+            label={t("Background completion")}
             onChange={(checked) => onSetNotificationPreferences({ backgroundCompletion: checked })}
           />
         </SettingsRow>
         <SettingsRow
-          title="Background failures"
-          description="Notify when a background session fails."
+          title={t("Background failures")}
+          description={t("Notify when a background session fails.")}
         >
           <SettingsSwitch
             checked={notificationPreferences.backgroundFailure}
-            label="Background failures"
+            label={t("Background failures")}
             onChange={(checked) => onSetNotificationPreferences({ backgroundFailure: checked })}
           />
         </SettingsRow>
         <SettingsRow
-          title="Needs input or approval"
-          description="Notify when input is needed to continue."
+          title={t("Needs input or approval")}
+          description={t("Notify when input is needed to continue.")}
         >
           <SettingsSwitch
             checked={notificationPreferences.attentionNeeded}
-            label="Needs input or approval"
+            label={t("Needs input or approval")}
             onChange={(checked) => onSetNotificationPreferences({ attentionNeeded: checked })}
           />
         </SettingsRow>

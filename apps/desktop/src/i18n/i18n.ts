@@ -1,14 +1,13 @@
 import { useSyncExternalStore } from "react";
 import {
+  DEFAULT_UI_LOCALE,
   getLocale,
+  isUiLocale,
   setLocale,
   subscribeLocale,
   t,
-  type MessageKey,
   type MessageParams,
   type UiLocale,
-  isUiLocale,
-  DEFAULT_UI_LOCALE,
 } from "../../contracts/i18n";
 
 /*
@@ -46,9 +45,9 @@ export function useLocale(): UiLocale {
 }
 
 /** Subscribes a component to locale changes and returns the translate function. */
-export function useT(): (key: MessageKey, params?: MessageParams) => string {
+export function useT(): (source: string, params?: MessageParams) => string {
   useLocale();
   return t;
 }
 
-export type { MessageKey, MessageParams, UiLocale };
+export type { MessageParams, UiLocale };

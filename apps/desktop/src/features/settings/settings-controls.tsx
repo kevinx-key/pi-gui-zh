@@ -1,4 +1,5 @@
 import { ChevronDownIcon } from "../../ui/icons";
+import { useT } from "../../i18n/i18n";
 
 /** A checkbox drawn as a switch, so it keeps native checkbox keyboard and form behaviour. */
 export function SettingsSwitch({
@@ -70,6 +71,7 @@ export function SettingsSelect<T extends string>({
   readonly value: T | undefined;
   readonly onChange: (value: T) => void;
 }) {
+  const t = useT();
   // Without a matching option Chromium shows the first one as chosen, and choosing it
   // fires no change, so an unset value gets an explicit placeholder instead.
   const hasValue = options.some((option) => option.value === value);
@@ -85,7 +87,7 @@ export function SettingsSelect<T extends string>({
       >
         {hasValue ? null : (
           <option disabled value="">
-            Choose…
+            {t("Choose…")}
           </option>
         )}
         {options.map((option) => (

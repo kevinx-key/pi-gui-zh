@@ -1,4 +1,5 @@
 import { SettingsGroup, SettingsRow } from "./settings-utils";
+import { useT } from "../../i18n/i18n";
 
 /**
  * "Mod" is Cmd on macOS and Ctrl elsewhere; "Ctrl" is Control on every platform.
@@ -84,12 +85,13 @@ function shortcutKeys(platform: NodeJS.Platform, shortcut: Shortcut): readonly s
 }
 
 export function SettingsShortcutsSection({ platform }: { readonly platform: NodeJS.Platform }) {
+  const t = useT();
   return (
     <>
       {SHORTCUT_GROUPS.map((group) => (
-        <SettingsGroup key={group.title} title={group.title}>
+        <SettingsGroup key={group.title} title={t(group.title)}>
           {group.shortcuts.map((shortcut) => (
-            <SettingsRow key={shortcut.title} title={shortcut.title}>
+            <SettingsRow key={shortcut.title} title={t(shortcut.title)}>
               <span className="settings-keys">
                 {shortcutKeys(platform, shortcut).map((key) => (
                   <kbd key={key}>{key}</kbd>

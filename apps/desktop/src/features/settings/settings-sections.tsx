@@ -66,7 +66,7 @@ export const SETTINGS_SECTIONS = [
     group: "Agent",
     icon: <PlugIcon />,
     keywords: ["login", "logout", "oauth", "api key", "auth", "custom endpoint"],
-    description: (workspaceName) => `Connect providers and manage auth for ${workspaceName}.`,
+    description: () => "Connect providers and manage auth for {workspace}.",
     needsWorkspace: true,
   },
   {

@@ -1,5 +1,5 @@
 import type { ThemeMode, ThemePresetId } from "../../../contracts/desktop-state";
-import { uiLocales, type MessageKey, type UiLocale } from "../../../contracts/i18n";
+import { uiLocales, type UiLocale } from "../../../contracts/i18n";
 import { SettingsSegmented, SettingsSelect, SettingsSwitch } from "./settings-controls";
 import { SettingsGroup, SettingsRow } from "./settings-utils";
 import type { CSSProperties } from "react";
@@ -16,15 +16,17 @@ interface SettingsAppearanceSectionProps {
   readonly onSetEnableTransparency: (enabled: boolean) => void;
 }
 
+/** English source labels; translated with `t()` at render. */
 const THEME_MODES: readonly { readonly mode: ThemeMode; readonly label: string }[] = [
   { mode: "system", label: "System" },
   { mode: "light", label: "Light" },
   { mode: "dark", label: "Dark" },
 ];
 
-const LOCALE_LABELS: Readonly<Record<UiLocale, MessageKey>> = {
-  "zh-CN": "locale.zh-CN",
-  "en-US": "locale.en-US",
+/** Language names are shown in their own language, so they are not translated. */
+const LOCALE_LABELS: Readonly<Record<UiLocale, string>> = {
+  "zh-CN": "简体中文",
+  "en-US": "English",
 };
 
 export function SettingsAppearanceSection({
@@ -43,21 +45,21 @@ export function SettingsAppearanceSection({
     <>
       <SettingsGroup>
         <SettingsRow
-          title={t("settings.appearance.language")}
-          description={t("settings.appearance.language.description")}
+          title={t("Interface language")}
+          description={t("Choose the language used across the app.")}
         >
           <SettingsSegmented
-            label={t("settings.appearance.language")}
-            options={uiLocales.map((value) => ({ value, label: t(LOCALE_LABELS[value]) }))}
+            label={t("Interface language")}
+            options={uiLocales.map((value) => ({ value, label: LOCALE_LABELS[value] }))}
             value={locale}
             onChange={setActiveLocale}
           />
         </SettingsRow>
       </SettingsGroup>
 
-      <SettingsGroup title="Theme" plain>
+      <SettingsGroup title={t("Theme")} plain>
         <div
-          aria-label="Theme"
+          aria-label={t("Theme")}
           className="theme-mode-tiles"
           role="radiogroup"
           style={tilePalette(themePresetId)}
@@ -80,14 +82,14 @@ export function SettingsAppearanceSection({
                   <span className="theme-mode-tile__line" />
                 </span>
               </span>
-              <span className="theme-mode-tile__label">{option.label}</span>
+              <span className="theme-mode-tile__label">{t(option.label)}</span>
             </label>
           ))}
         </div>
       </SettingsGroup>
 
       <SettingsGroup>
-        <SettingsRow title="Color preset" description={activePreset.description}>
+        <SettingsRow title={t("Color preset")} description={t(activePreset.description)}>
           <span className="settings-preset-control">
             <span aria-hidden="true" className="settings-preset-swatches">
               {themeSwatches(themePresetId, variant).map((swatch, index) => (
@@ -95,20 +97,23 @@ export function SettingsAppearanceSection({
               ))}
             </span>
             <SettingsSelect
-              label="Color preset"
-              options={themePresets.map((preset) => ({ value: preset.id, label: preset.name }))}
+              label={t("Color preset")}
+              options={themePresets.map((preset) => ({
+                value: preset.id,
+                label: t(preset.name),
+              }))}
               value={themePresetId}
               onChange={onSetThemePresetId}
             />
           </span>
         </SettingsRow>
         <SettingsRow
-          title="Window transparency"
-          description="Let desktop colors show through supported surfaces."
+          title={t("Window transparency")}
+          description={t("Let desktop colors show through supported surfaces.")}
         >
           <SettingsSwitch
             checked={enableTransparency}
-            label="Window transparency"
+            label={t("Window transparency")}
             onChange={onSetEnableTransparency}
           />
         </SettingsRow>

@@ -21,6 +21,7 @@ import { SettingsNotificationsSection } from "./settings-notifications-section";
 import { SettingsProvidersSection } from "./settings-providers-section";
 import { type SettingsSection, settingsSectionDefinition } from "./settings-sections";
 import { SettingsShortcutsSection } from "./settings-shortcuts-section";
+import { useT } from "../../i18n/i18n";
 
 export type { SettingsSection } from "./settings-sections";
 
@@ -98,13 +99,15 @@ export function SettingsView({
   onSetEnableTransparency,
   mcpActions,
 }: SettingsViewProps) {
+  const t = useT();
   const definition = settingsSectionDefinition(section);
+  const workspaceName = workspace?.name ?? t("this workspace");
   const header = (
     <header className="view-header">
       <div>
-        <h1 className="view-header__title">{definition.title}</h1>
+        <h1 className="view-header__title">{t(definition.title)}</h1>
         <p className="view-header__body">
-          {definition.description(workspace?.name ?? "this workspace")}
+          {t(definition.description(workspaceName), { workspace: workspaceName })}
         </p>
       </div>
       {headerAccessory ? <div className="view-header__actions">{headerAccessory}</div> : null}
@@ -119,9 +122,11 @@ export function SettingsView({
           <div className="settings-group">
             <div className="settings-row">
               <div className="settings-row__label">
-                <div className="settings-row__title">Select a workspace</div>
+                <div className="settings-row__title">{t("Select a workspace")}</div>
                 <div className="settings-row__description">
-                  Providers and models are set per workspace. Choose one, or open a folder first.
+                  {t(
+                    "Providers and models are set per workspace. Choose one, or open a folder first.",
+                  )}
                 </div>
               </div>
             </div>

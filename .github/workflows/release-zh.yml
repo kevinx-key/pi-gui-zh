@@ -37,6 +37,9 @@ jobs:
       - name: Install
         run: pnpm install --frozen-lockfile
 
+      - name: Build shared packages
+        run: pnpm build:shared
+
       - name: Typecheck
         run: pnpm --filter @pi-gui/desktop run typecheck
 

@@ -12,6 +12,7 @@ import { RefreshIcon, SearchIcon } from "../../ui/icons";
 import { extensionScopeLabel } from "./extension-display";
 import { ExtensionsTab } from "./extensions-view";
 import { SkillsTab } from "./skills-view";
+import { useT } from "../../i18n/i18n";
 
 export type CustomizeTab = "skills" | "extensions";
 
@@ -51,6 +52,7 @@ export function CustomizePage({
   onToggleExtension,
   onOpenExtensionFolder,
 }: CustomizePageProps) {
+  const t = useT();
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | undefined>();
   // The palette and the workspace picker change what is listed without going through the tabs,
@@ -102,18 +104,19 @@ export function CustomizePage({
       <div className="conversation settings-view">
         <header className="view-header">
           <div>
-            <h1 className="view-header__title">Skills and extensions</h1>
+            <h1 className="view-header__title">{t("Skills and extensions")}</h1>
             <p className="view-header__body">
-              Reusable workflows and runtime add-ons pi loads for{" "}
-              {workspace?.name ?? "this workspace"}.
+              {t("Reusable workflows and runtime add-ons pi loads for {workspace}.", {
+                workspace: workspace?.name ?? t("this workspace"),
+              })}
             </p>
           </div>
           <div className="view-header__actions">
             {workspacePicker}
             <button
-              aria-label="Refresh"
+              aria-label={t("Refresh")}
               className="icon-button resource-refresh"
-              title="Refresh"
+              title={t("Refresh")}
               type="button"
               onClick={onRefresh}
             >
@@ -125,7 +128,7 @@ export function CustomizePage({
                 type="button"
                 onClick={() => onTryCommand(NEW_SKILL_PROMPT)}
               >
-                New skill
+                {t("New skill")}
               </button>
             ) : null}
           </div>
@@ -133,21 +136,21 @@ export function CustomizePage({
 
         <div className="resource-toolbar">
           <div
-            aria-label="Skills and extensions"
+            aria-label={t("Skills and extensions")}
             className="resource-tabs"
             role="tablist"
             onKeyDown={handleTabKeyDown}
           >
             <ResourceTab
               count={skills.length}
-              label="Skills"
+              label={t("Skills")}
               selected={tab === "skills"}
               tab="skills"
               onSelect={() => onSelectTab("skills")}
             />
             <ResourceTab
               count={extensions.length}
-              label="Extensions"
+              label={t("Extensions")}
               selected={tab === "extensions"}
               tab="extensions"
               onSelect={() => onSelectTab("extensions")}
@@ -156,8 +159,12 @@ export function CustomizePage({
           <label className="resource-search">
             <SearchIcon />
             <input
-              aria-label={`Search ${tab}`}
-              placeholder={`Search ${tab}`}
+              aria-label={t("Search {title}", {
+                title: tab === "skills" ? t("Skills") : t("Extensions"),
+              })}
+              placeholder={t("Search {title}", {
+                title: tab === "skills" ? t("Skills") : t("Extensions"),
+              })}
               spellCheck={false}
               type="search"
               value={query}
@@ -178,9 +185,9 @@ export function CustomizePage({
         >
           {!workspace ? (
             <div className="settings-group resource-empty">
-              <div className="resource-empty__title">Open a folder first</div>
+              <div className="resource-empty__title">{t("Open a folder first")}</div>
               <p className="resource-empty__body">
-                Skills and extensions are discovered per workspace, plus your user folders.
+                {t("Skills and extensions are discovered per workspace, plus your user folders.")}
               </p>
             </div>
           ) : tab === "skills" ? (

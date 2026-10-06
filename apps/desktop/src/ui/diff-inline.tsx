@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { HighlightedLine } from "./highlighted-line";
 import { MAX_HIGHLIGHTED_LINES } from "./syntax-highlight";
+import { t } from "../../contracts/i18n";
 
 interface DiffLine {
   readonly type: "added" | "removed" | "context" | "header" | "unmodified";
@@ -77,7 +78,9 @@ function parseDiff(diff: string, unmodifiedGaps: boolean): DiffLine[] {
       if (skipped > 0)
         result.push({
           type: "unmodified",
-          content: `${skipped} unmodified ${skipped === 1 ? "line" : "lines"}`,
+          content: t(skipped === 1 ? "{count} unmodified line" : "{count} unmodified lines", {
+            count: skipped,
+          }),
         });
       if (deletesOnly) lineNumber += 1;
       nextUnshown = lineNumber;

@@ -3,6 +3,8 @@ import type { HostUiResponse } from "@pi-gui/session-driver";
 import { trapDialogFocus } from "../../ui/dialog-focus";
 import { focusComposerAfter } from "./focus-composer";
 import { ChevronDownIcon, ChevronRightIcon, CloseIcon } from "../../ui/icons";
+import { t } from "../../../contracts/i18n";
+import { useT } from "../../i18n/i18n";
 import type {
   SessionExtensionDialogRecord,
   SessionExtensionUiStateRecord,
@@ -101,6 +103,7 @@ export function ExtensionDock({
   readonly onToggle: () => void;
   readonly onDismiss?: () => void;
 }) {
+  const t = useT();
   return (
     <div
       className={`extension-dock ${expanded ? "extension-dock--expanded" : ""}`}
@@ -125,10 +128,10 @@ export function ExtensionDock({
         </button>
         {onDismiss ? (
           <button
-            aria-label="Hide extension status"
+            aria-label={t("Hide extension status")}
             className="extension-dock__dismiss icon-button"
             data-testid="extension-dock-dismiss"
-            title="Hide until the extension changes it"
+            title={t("Hide until the extension changes it")}
             type="button"
             onClick={(event) => focusComposerAfter(event.currentTarget, onDismiss)}
           >
@@ -156,6 +159,7 @@ export function ExtensionDialog({
   readonly dialog: SessionExtensionDialogRecord;
   readonly onRespond: (response: HostUiResponse) => void;
 }) {
+  const t = useT();
   const [draft, setDraft] = useState("");
   const titleId = useId();
   const bodyId = useId();
@@ -254,7 +258,7 @@ export function ExtensionDialog({
           <input
             autoFocus
             className="skills-search"
-            placeholder={dialog.placeholder ?? "Enter a value"}
+            placeholder={dialog.placeholder ?? t("Enter a value")}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
           />
@@ -277,7 +281,7 @@ export function ExtensionDialog({
             type="button"
             onClick={respondWithCancel}
           >
-            Cancel
+            {t("Cancel")}
           </button>
           {dialog.kind === "confirm" ? (
             <button
@@ -286,7 +290,7 @@ export function ExtensionDialog({
               type="button"
               onClick={respondWithSubmit}
             >
-              Confirm
+              {t("Confirm")}
             </button>
           ) : null}
           {dialog.kind === "input" || dialog.kind === "editor" ? (
@@ -296,7 +300,7 @@ export function ExtensionDialog({
               type="button"
               onClick={respondWithSubmit}
             >
-              Submit
+              {t("Submit")}
             </button>
           ) : null}
         </div>
@@ -336,7 +340,7 @@ function resolveDockSummaryText(
     }
   }
 
-  return GENERIC_ACTIVE_LABEL;
+  return t(GENERIC_ACTIVE_LABEL);
 }
 
 function buildDockBodyText(

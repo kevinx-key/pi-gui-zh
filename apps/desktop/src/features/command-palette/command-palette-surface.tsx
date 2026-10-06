@@ -4,6 +4,7 @@ import type { PiDesktopApi } from "../../../contracts/ipc";
 import { sessionLastInteractedAt } from "../../../contracts/thread-recency";
 import { formatRelativeTime } from "../../lib/string-utils";
 import { ChatIcon, FileIcon, FolderIcon, ModelIcon } from "../../ui/icons";
+import { useT } from "../../i18n/i18n";
 import type { ComposerModelOption } from "../conversation/composer-commands";
 import type { ThreadListEntry } from "../threads/thread-groups";
 import { CommandPalette, type PaletteSection } from "./command-palette";
@@ -73,6 +74,7 @@ export function CommandPaletteSurface({
   onOpenFile,
   onSelectModel,
 }: CommandPaletteSurfaceProps) {
+  const t = useT();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<CommandFilter>("all");
   const [listing, setListing] = useState<FileListing>({ status: "loading" });
@@ -118,7 +120,11 @@ export function CommandPaletteSurface({
         .filter(Boolean)
         .join(" · "),
       icon: <ChatIcon />,
-      hint: isCurrent ? "Current" : thread.session.status === "running" ? "Running" : undefined,
+      hint: isCurrent
+        ? t("Current")
+        : thread.session.status === "running"
+          ? t("Running")
+          : undefined,
       run: () => {
         onClose();
         onOpenThread(target);
@@ -153,8 +159,10 @@ export function CommandPaletteSurface({
   let sections: readonly PaletteSection[];
   let emptyText: string;
   if (mode === "files") {
-    label = "Go to file";
-    placeholder = fileScope ? `Search files in ${fileScope.label}` : "Search files";
+    label = t("Go to file");
+    placeholder = fileScope
+      ? t("Search files in {name}", { name: fileScope.label })
+      : t("Search files");
     sections =
       fileScope && files
         ? buildFileSections({
@@ -177,19 +185,21 @@ export function CommandPaletteSurface({
           })
         : [];
     emptyText = !fileScope
-      ? "Open a thread to search its files."
+      ? t("Open a thread to search its files.")
       : listing.status === "loading"
-        ? "Loading files…"
+        ? t("Loading files…")
         : listing.status === "error"
-          ? "Couldn't load files."
+          ? t("Couldn't load files.")
           : query !== fileQuery
-            ? "Searching…"
+            ? t("Searching…")
             : query.trim()
-              ? "No matching files."
-              : `Type to search ${(files?.length ?? 0).toLocaleString()} files.`;
+              ? t("No matching files.")
+              : t("Type to search {count} files.", {
+                  count: (files?.length ?? 0).toLocaleString(),
+                });
   } else if (mode === "models") {
-    label = "Switch model";
-    placeholder = "Switch model";
+    label = t("Switch model");
+    placeholder = t("Switch model");
     sections = buildListSection({
       id: "models",
       label: "Models",
@@ -201,7 +211,7 @@ export function CommandPaletteSurface({
         hint:
           option.providerId === modelScope?.currentProvider &&
           option.modelId === modelScope.currentModelId
-            ? "Current"
+            ? t("Current")
             : undefined,
         run: () => {
           onClose();
@@ -209,10 +219,10 @@ export function CommandPaletteSurface({
         },
       })),
     });
-    emptyText = modelScope?.options.length ? "No matching models." : "No models available.";
+    emptyText = modelScope?.options.length ? t("No matching models.") : t("No models available.");
   } else {
-    label = "Command palette";
-    placeholder = "Search chats, workspaces and actions";
+    label = t("Command palette");
+    placeholder = t("Search chats, workspaces and actions");
     sections = buildCommandSections({
       query,
       filter,
@@ -220,7 +230,7 @@ export function CommandPaletteSurface({
       workspaces: workspaceCandidates,
       actions: actionCandidates,
     });
-    emptyText = query.trim() ? "No matches." : "Nothing here yet.";
+    emptyText = query.trim() ? t("No matches.") : t("Nothing here yet.");
   }
 
   return (

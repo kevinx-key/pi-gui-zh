@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { SettingsSwitch } from "../settings/settings-controls";
+import { useT } from "../../i18n/i18n";
 
 export interface ResourceListItem {
   readonly id: string;
@@ -58,6 +59,7 @@ function ResourceGroup({
   readonly expanded: boolean;
   readonly onOpen: (id: string) => void;
 }) {
+  const t = useT();
   const [showAll, setShowAll] = useState(false);
   const visible = expanded || showAll ? group.items : group.items.slice(0, COLLAPSED_ROW_COUNT);
   const hiddenCount = group.items.length - visible.length;
@@ -65,7 +67,7 @@ function ResourceGroup({
   return (
     <section className="settings-section">
       <h3 className="settings-section__title">
-        {group.label} <span className="resource-list__count">{group.items.length}</span>
+        {t(group.label)} <span className="resource-list__count">{group.items.length}</span>
       </h3>
       <div className="settings-group">
         {visible.map((item) => (
@@ -87,7 +89,7 @@ function ResourceGroup({
             <SettingsSwitch
               checked={item.enabled}
               disabled={!item.onToggle}
-              label={`Enable ${item.title}`}
+              label={t("Enable {name}", { name: item.title })}
               onChange={(enabled) => item.onToggle?.(enabled)}
             />
           </div>
@@ -95,7 +97,7 @@ function ResourceGroup({
       </div>
       {hiddenCount > 0 ? (
         <button className="resource-list__more" type="button" onClick={() => setShowAll(true)}>
-          Show {hiddenCount} more
+          {t("Show {count} more", { count: hiddenCount })}
         </button>
       ) : null}
     </section>

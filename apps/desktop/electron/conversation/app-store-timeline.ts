@@ -149,6 +149,36 @@ export function appendAssistantDelta(
   transcriptCache.set(key, transcript);
 }
 
+/**
+ * Accumulate the model's reasoning on the live assistant row. Reasoning can arrive before
+ * any answer text, so this creates the row the same way `appendAssistantDelta` does.
+ */
+export function appendAssistantThinkingDelta(
+  transcriptCache: Map<string, readonly TranscriptMessage[]>,
+  activeAssistantMessageBySession: Map<string, string>,
+  sessionRef: SessionRef,
+  text: string,
+): void {
+  const key = sessionKey(sessionRef);
+  const transcript = [...(transcriptCache.get(key) ?? [])];
+  const activeId = activeAssistantMessageBySession.get(key);
+  const index = activeId ? transcript.findIndex((message) => message.id === activeId) : -1;
+  const current = index >= 0 ? transcript[index] : undefined;
+
+  if (current?.kind === "message") {
+    transcript[index] = { ...current, thinking: `${current.thinking ?? ""}${text}` };
+  } else {
+    const message: TranscriptMessage = {
+      ...makeTranscriptMessage("assistant", ""),
+      thinking: text,
+    };
+    transcript.push(message);
+    activeAssistantMessageBySession.set(key, message.id);
+  }
+
+  transcriptCache.set(key, transcript);
+}
+
 export function clearActiveAssistantMessage(
   activeAssistantMessageBySession: Map<string, string>,
   sessionRef: SessionRef,

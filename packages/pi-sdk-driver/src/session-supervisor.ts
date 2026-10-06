@@ -2641,23 +2641,36 @@ export class SessionSupervisor {
           );
         }
         return [sessionUpdatedEvent(record)];
-      case "message_update":
+      case "message_update": {
         this.updatePreviewFromMessage(record, event.message);
-        if (
-          event.message.role === "assistant" &&
-          event.assistantMessageEvent.type === "text_delta"
-        ) {
+        const assistantEvent =
+          event.message.role === "assistant" ? event.assistantMessageEvent : undefined;
+        // Reasoning streams alongside the answer. It becomes its own driver event so the
+        // transcript can keep it out of the answer text and collapse it.
+        if (assistantEvent?.type === "thinking_delta") {
+          return toDriverEvents(
+            {
+              type: "thinkingDelta" as const,
+              sessionRef: record.ref,
+              timestamp,
+              text: assistantEvent.delta ?? "",
+            },
+            record,
+          );
+        }
+        if (assistantEvent?.type === "text_delta") {
           return toDriverEvents(
             {
               type: "assistantDelta" as const,
               sessionRef: record.ref,
               timestamp,
-              text: event.assistantMessageEvent.delta ?? "",
+              text: assistantEvent.delta ?? "",
             },
             record,
           );
         }
         return [sessionUpdatedEvent(record)];
+      }
       case "tool_execution_start":
         record.status = "running";
         return toDriverEvents(

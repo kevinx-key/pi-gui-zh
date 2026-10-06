@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import type {
   SessionTranscriptCustomMessage,
   SessionTranscriptMessage,
@@ -28,11 +28,13 @@ import { TurnChangesCard, type OpenTurnChange } from "./turn-changes-card";
 import type { WorkspaceFileLine } from "./workspace-file-line";
 import { InlineDiff, extractDiffFromOutput } from "../../ui/diff-inline";
 import {
+  ChevronDownIcon,
   ChevronRightIcon,
   CopyIcon,
   DiffIcon,
   FileIcon,
   ForkIcon,
+  ReasoningIcon,
   SparkIcon,
   TerminalIcon,
 } from "../../ui/icons";
@@ -219,6 +221,7 @@ function TimelineMessage({
   const forkable = sourceMessageIndex !== undefined;
   return (
     <article className="timeline-item timeline-item--assistant" ref={articleRef}>
+      <ThinkingBlock live={item.sourceMessageId === undefined} text={item.thinking} />
       <MessageMarkdown
         annotationRoot
         onOpenWorkspaceFileLine={onOpenWorkspaceFileLine}
@@ -247,6 +250,46 @@ function TimelineMessage({
       ) : null}
       {markers}
     </article>
+  );
+}
+
+/**
+ * The model's reasoning, next to the answer it produced rather than folded into it. While
+ * the row is live — Pi has not persisted it yet, so `sourceMessageId` is unset — it opens
+ * on its own and closes again when the answer lands. A click pins it either way.
+ */
+function ThinkingBlock({ text, live }: { readonly text?: string; readonly live: boolean }) {
+  const t = useT();
+  const [pinned, setPinned] = useState<boolean | null>(null);
+  if (!text?.trim()) return null;
+  const open = pinned ?? live;
+
+  return (
+    <div className="timeline-thinking" data-live={live ? "true" : "false"}>
+      <button
+        aria-expanded={open}
+        className="timeline-thinking__header"
+        data-testid="thinking-toggle"
+        onClick={() => setPinned(!open)}
+        type="button"
+      >
+        <span aria-hidden="true" className="timeline-thinking__icon">
+          <ReasoningIcon />
+        </span>
+        <span>{t("Thinking")}</span>
+        <span
+          aria-hidden="true"
+          className={`timeline-thinking__chevron${open ? " timeline-thinking__chevron--open" : ""}`}
+        >
+          <ChevronDownIcon />
+        </span>
+      </button>
+      {open ? (
+        <div className="timeline-thinking__body" data-testid="thinking-body">
+          <MessageMarkdown text={text} />
+        </div>
+      ) : null}
+    </div>
   );
 }
 

@@ -89,6 +89,20 @@ await test("a streaming partial emits its driver events without writing the cata
   assert.equal(catalogWrites, 0);
 });
 
+await test("a streamed reasoning chunk emits its own driver event", async () => {
+  const { catalogWrites, emitted } = await drive({
+    type: "message_update",
+    message: { role: "assistant", content: [{ type: "thinking", thinking: "why" }] },
+    assistantMessageEvent: { type: "thinking_delta", delta: "why" },
+  });
+
+  assert.ok(
+    emitted.some((event) => event.type === "thinkingDelta" && event.text === "why"),
+    `expected a thinkingDelta, got ${JSON.stringify(emitted.map((event) => event.type))}`,
+  );
+  assert.equal(catalogWrites, 0);
+});
+
 await test("a discrete agent event still writes the catalog", async () => {
   const { catalogWrites, emitted } = await drive({
     type: "message_end",

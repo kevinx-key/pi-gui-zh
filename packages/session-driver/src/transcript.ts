@@ -24,6 +24,12 @@ export interface SessionTranscriptMessage {
   readonly kind: "message";
   readonly role: SessionTranscriptRole;
   readonly text: string;
+  /**
+   * The model's reasoning for this message, when the provider streamed any. Kept out of
+   * `text` so the transcript can collapse it: it is a scratchpad, not the answer, and it
+   * is often longer than the answer.
+   */
+  readonly thinking?: string;
   readonly attachments?: readonly SessionTranscriptAttachment[];
   readonly createdAt: string;
   readonly id: string;

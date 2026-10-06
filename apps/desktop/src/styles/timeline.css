@@ -901,6 +901,63 @@
   min-height: 0;
 }
 
+/* ---- Model reasoning ---------------------------------------------------- */
+
+/*
+ * The model's reasoning sits above the answer it produced, collapsed by default once the
+ * answer is on disk. The body is height-capped: reasoning is often longer than the answer
+ * and must not push the transcript around.
+ */
+.timeline-thinking {
+  margin-bottom: 8px;
+}
+
+.timeline-thinking__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px 3px 6px;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: left;
+}
+
+.timeline-thinking__header:hover {
+  background: var(--overlay-hover);
+  color: var(--text-strong);
+}
+
+.timeline-thinking__icon svg {
+  width: 15px;
+  height: 15px;
+}
+
+.timeline-thinking__chevron {
+  display: inline-flex;
+  transition: transform 120ms ease;
+}
+
+.timeline-thinking__chevron--open {
+  transform: rotate(180deg);
+}
+
+.timeline-thinking__body {
+  max-height: 320px;
+  margin-top: 2px;
+  padding: 8px 12px;
+  border-left: 2px solid var(--line-strong);
+  overflow: auto;
+  color: var(--muted-strong);
+  font-size: 13px;
+}
+
+.timeline-thinking[data-live="true"] .timeline-thinking__header {
+  color: var(--muted-strong);
+}
+
 /* ---- Turn changes card -------------------------------------------------- */
 
 .turn-changes {

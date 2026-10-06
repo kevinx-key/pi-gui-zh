@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   determineRunOutcome,
   messageText,
+  messageThinking,
   persistedToolOutput,
   shouldPersistSnapshotForAgentEvent,
   transcriptFromMessages,
@@ -41,6 +42,34 @@ await test("messageText preserves Markdown newlines in array-shaped assistant co
   };
 
   assert.equal(messageText(message), markdownReport);
+});
+
+await test("messageThinking carries reasoning onto assistant rows, never into the answer text", () => {
+  const message = {
+    role: "assistant",
+    content: [
+      { type: "thinking", thinking: "First I read the config." },
+      { type: "text", text: "The config is fine." },
+      { type: "thinking", thinking: "Then I check the logs." },
+    ],
+  };
+
+  assert.equal(messageThinking(message), "First I read the config.\n\nThen I check the logs.");
+  assert.equal(messageText(message), "The config is fine.");
+
+  const transcript = transcriptFromMessages([message, { role: "user", content: message.content }]);
+  const [, user] = transcript;
+  assert.deepEqual(
+    transcript.map((item) => (item.kind === "message" ? item.thinking : undefined)),
+    ["First I read the config.\n\nThen I check the logs.", undefined],
+  );
+  assert.equal(user?.kind === "message" ? user.text : undefined, "The config is fine.");
+
+  // A redacted block keeps only its signature, so nothing is shown for it.
+  assert.equal(
+    messageThinking({ role: "assistant", content: [{ type: "thinking", thinking: "" }] }),
+    "",
+  );
 });
 
 await test("only a requested SDK abort is cancellation; actual provider errors remain failures", () => {

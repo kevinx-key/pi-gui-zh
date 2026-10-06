@@ -464,6 +464,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   "Jump to your message": "跳转到你的消息",
   "Transcript actions": "会话操作",
   "Your messages": "你的消息",
+  Thinking: "思考过程",
   Cut: "剪切",
   Paste: "粘贴",
   "Select all": "全选",

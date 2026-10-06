@@ -353,14 +353,17 @@ function transcriptFromSources(
     }
 
     const text = messageText(message);
+    // Reasoning is only ever drawn under an assistant row.
+    const thinking = role === "assistant" ? messageThinking(message) : "";
     const attachments = messageAttachments(message);
-    if (text || attachments.length > 0) {
+    if (text || thinking || attachments.length > 0) {
       transcript.push({
         kind: "message",
         id: typeof message.id === "string" ? message.id : `${role}-${index}`,
         ...(typeof message.id === "string" ? { sourceMessageId: message.id } : {}),
         role,
         text,
+        ...(thinking ? { thinking } : {}),
         ...(attachments.length > 0 ? { attachments } : {}),
         createdAt,
       });
@@ -656,6 +659,25 @@ function applyToolResult(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+/**
+ * The model's reasoning for a stored message, joined the way `messageText` joins its text.
+ * Providers stream it as `thinking` content blocks; redacted ones carry only a signature
+ * and contribute nothing.
+ */
+export function messageThinking(message: Record<string, unknown>): string {
+  const { content } = message;
+  if (!Array.isArray(content)) return "";
+  return content
+    .map((part) =>
+      isRecord(part) && part.type === "thinking" && typeof part.thinking === "string"
+        ? part.thinking
+        : "",
+    )
+    .filter((thinking) => thinking.length > 0)
+    .join("\n\n")
+    .trim();
 }
 
 export function messageText(message: Record<string, unknown>): string {

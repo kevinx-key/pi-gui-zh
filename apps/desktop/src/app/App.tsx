@@ -95,6 +95,11 @@ import { useComposerDraftSync } from "../features/conversation/hooks/use-compose
 import { useSessionComposer } from "../features/conversation/hooks/use-session-composer";
 import { useTranscriptAnnotations } from "../features/conversation/annotations/use-transcript-annotations";
 
+const EMPTY_FOLDER_THREAD_HINT =
+  "Create a thread for this folder, then jump between sessions from the sidebar.";
+const EMPTY_FOLDERS_HINT =
+  "Add project folders, group sessions under them, and jump between threads from the sidebar.";
+
 export default function App() {
   const t = useT();
   const desktop = useDesktopAppState();
@@ -1310,11 +1315,7 @@ export default function App() {
               <div className="empty-panel">
                 <div className="session-header__eyebrow">{t("Workspace")}</div>
                 <h1>{selectedWorkspace.name}</h1>
-                <p>
-                  {t(
-                    "Create a thread for this folder, then jump between sessions from the sidebar.",
-                  )}
-                </p>
+                <p>{t(EMPTY_FOLDER_THREAD_HINT)}</p>
                 <div className="empty-panel__actions">
                   <button
                     className="button button--primary"
@@ -1335,11 +1336,7 @@ export default function App() {
               <div className="empty-panel">
                 <div className="session-header__eyebrow">{t("Workspace")}</div>
                 <h1>{t("Open a folder to start")}</h1>
-                <p>
-                  {t(
-                    "Add project folders, group sessions under them, and jump between threads from the sidebar.",
-                  )}
-                </p>
+                <p>{t(EMPTY_FOLDERS_HINT)}</p>
               </div>
             </section>
           )}

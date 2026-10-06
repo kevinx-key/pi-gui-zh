@@ -291,6 +291,10 @@ export const zhCN: Readonly<Record<string, string>> = {
 
   // ── App shell ─────────────────────────────────────────
   "Back to app": "返回应用",
+  "Minimize window": "最小化窗口",
+  "Maximize window": "最大化窗口",
+  "Restore window": "还原窗口",
+  "Close window": "关闭窗口",
   "{title} sections": "{title}分区",
   "Search {title}": "搜索{title}",
   Search: "搜索",

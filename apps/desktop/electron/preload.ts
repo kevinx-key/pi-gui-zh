@@ -15,6 +15,8 @@ import {
   type CustomProviderConfig,
   type CustomProviderProbeInput,
   type CustomProviderProbeResult,
+  type WindowBounds,
+  type WindowChromeState,
   type McpServerScope,
   type McpServersSnapshot,
   type NewMcpServerInput,
@@ -591,6 +593,12 @@ contextBridge.exposeInMainWorld("piApp", {
       stagingSourcePath,
     ) as Promise<void>,
   toggleWindowMaximize: () => ipcRenderer.invoke(desktopIpc.toggleWindowMaximize) as Promise<void>,
+  minimizeWindow: () => ipcRenderer.invoke(desktopIpc.minimizeWindow) as Promise<void>,
+  closeWindow: () => ipcRenderer.invoke(desktopIpc.closeWindow) as Promise<void>,
+  getWindowChrome: () =>
+    ipcRenderer.invoke(desktopIpc.getWindowChrome) as Promise<WindowChromeState>,
+  setWindowBounds: (bounds: WindowBounds) =>
+    ipcRenderer.invoke(desktopIpc.setWindowBounds, bounds) as Promise<void>,
   openExternal: (url: string) => ipcRenderer.invoke(desktopIpc.openExternal, url) as Promise<void>,
   getThemeMode: () =>
     ipcRenderer.invoke(desktopIpc.getThemeMode) as Promise<"system" | "light" | "dark">,

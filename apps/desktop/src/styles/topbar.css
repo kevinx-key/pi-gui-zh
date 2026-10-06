@@ -4,7 +4,13 @@
  * ========================================================================== */
 
 .topbar {
-  -webkit-app-region: drag;
+  /*
+   * Windows and Linux move the window through the pointer gestures in
+   * app/window-chrome.tsx instead of a drag region: Chromium ignores
+   * `-webkit-app-region` on a transparent window, which is exactly the configuration that
+   * has no native title bar left to fall back on. macOS keeps its native drag region.
+   */
+  -webkit-app-region: no-drag;
   height: 48px;
   min-width: 0;
   padding: 0 16px;
@@ -59,6 +65,7 @@
 
 .topbar__actions {
   flex: none;
+  align-self: stretch;
 }
 
 .topbar__actions,
@@ -158,6 +165,53 @@
 
 .topbar__title:has(.chat-header__title) .topbar__workspace {
   flex-shrink: 3;
+}
+
+.topbar[data-platform="darwin"] {
+  -webkit-app-region: drag;
+}
+
+/*
+ * Windows-style caption buttons. Windows and Linux draw no window buttons for a frameless
+ * window, so these replace the native ones: flush to the top-right corner, stretched to
+ * the full topbar height, and `margin-right` cancels the topbar's own padding.
+ */
+.window-controls {
+  display: flex;
+  align-self: stretch;
+  margin-right: -16px;
+  -webkit-app-region: no-drag;
+}
+
+.window-controls__button {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted-soft);
+  cursor: default;
+}
+
+.window-controls__button:hover {
+  background: var(--overlay-hover);
+  color: var(--text-strong);
+}
+
+.window-controls__button:active {
+  background: var(--overlay-active);
+}
+
+.window-controls__button--close:hover,
+.window-controls__button--close:active {
+  background: #c42b1c;
+  color: #ffffff;
+}
+
+.window-controls__glyph {
+  width: 10px;
+  height: 10px;
 }
 
 @media (max-width: 1200px) {

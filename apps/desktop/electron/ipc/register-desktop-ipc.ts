@@ -15,6 +15,7 @@ import {
   type ChangedFilesResult,
   type CustomProviderProbeInput,
   type CustomProviderProbeResult,
+  type WindowChromeState,
 } from "../../contracts/ipc";
 import type { DesktopAppStore } from "../application/app-store";
 import type { NotificationPermissionService } from "../platform/notification-permission";
@@ -65,6 +66,7 @@ import {
   expectThinkingLevel,
   expectWorkspaceFileListOptions,
   expectExtensionActionRequest,
+  expectWindowBounds,
 } from "./request-validation";
 import { runExtensionAction, type AppOperationHost } from "../extensions/app-operations";
 
@@ -950,6 +952,15 @@ export function registerDesktopIpc({
   );
 
   registerWorkspaceFileIpc(windows, owners.workspace, capabilities);
+  registerWindowChromeIpc(windows);
+}
+
+/**
+ * Window chrome for the frameless Windows/Linux window, whose topbar draws the caption
+ * buttons and drives moving and resizing itself. A transparent window has no native
+ * frame or thick frame, so the OS cannot drag or resize it at all.
+ */
+function registerWindowChromeIpc(windows: WindowOwner): void {
   ipcMain.handle(desktopIpc.toggleWindowMaximize, (event) => {
     const window = senderWindow(windows, event);
     if (window.isMaximized()) {
@@ -958,6 +969,29 @@ export function registerDesktopIpc({
       window.maximize();
     }
   });
+  ipcMain.handle(desktopIpc.minimizeWindow, (event) => {
+    senderWindow(windows, event).minimize();
+  });
+  ipcMain.handle(desktopIpc.closeWindow, (event) => {
+    senderWindow(windows, event).close();
+  });
+  ipcMain.handle(desktopIpc.getWindowChrome, (event) =>
+    windowChromeState(senderWindow(windows, event)),
+  );
+  ipcMain.handle(desktopIpc.setWindowBounds, (event, rawBounds: unknown) => {
+    senderWindow(windows, event).setBounds(expectWindowBounds(rawBounds));
+  });
+}
+
+function windowChromeState(window: BrowserWindow): WindowChromeState {
+  const bounds = window.getBounds();
+  const [minWidth = 0, minHeight = 0] = window.getMinimumSize();
+  return {
+    bounds: { x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
+    maximized: window.isMaximized(),
+    minWidth,
+    minHeight,
+  };
 }
 
 function registerTerminalIpc(windows: WindowOwner, capabilities: DesktopIpcCapabilities): void {

@@ -214,6 +214,10 @@ export const desktopIpc = {
   getSessionTree: "pi-gui:get-session-tree",
   navigateSessionTree: "pi-gui:navigate-session-tree",
   toggleWindowMaximize: "pi-gui:toggle-window-maximize",
+  minimizeWindow: "pi-gui:minimize-window",
+  closeWindow: "pi-gui:close-window",
+  getWindowChrome: "pi-gui:get-window-chrome",
+  setWindowBounds: "pi-gui:set-window-bounds",
   listWorkspaceFiles: "pi-gui:list-workspace-files",
   readWorkspaceFile: "pi-gui:read-workspace-file",
   revealWorkspaceFile: "pi-gui:reveal-workspace-file",
@@ -690,6 +694,26 @@ export function isCloseFocusedSurfaceShortcut(input: {
   return input.key.toLowerCase() === "w" || input.code === "KeyW";
 }
 
+/** Window rectangle in device-independent pixels, matching `BrowserWindow.setBounds`. */
+export interface WindowBounds {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+/**
+ * What the custom window chrome needs: the current rectangle and the size the window
+ * refuses to shrink past. Our topbar owns moving and resizing on Windows and Linux,
+ * where a transparent window has neither a native frame nor a thick frame.
+ */
+export interface WindowChromeState {
+  readonly bounds: WindowBounds;
+  readonly maximized: boolean;
+  readonly minWidth: number;
+  readonly minHeight: number;
+}
+
 export interface PiDesktopApi {
   platform: NodeJS.Platform;
   versions: NodeJS.ProcessVersions;
@@ -892,6 +916,11 @@ export interface PiDesktopApi {
   setReviewFileReviewed(input: SetReviewFileReviewedInput): Promise<SetReviewFileReviewedResult>;
   changeReviewFileStage(input: ChangeReviewFileStageInput): Promise<ChangeReviewFileStageResult>;
   toggleWindowMaximize(): Promise<void>;
+  minimizeWindow(): Promise<void>;
+  closeWindow(): Promise<void>;
+  getWindowChrome(): Promise<WindowChromeState>;
+  /** Moves or resizes the window while a topbar gesture is in flight. */
+  setWindowBounds(bounds: WindowBounds): Promise<void>;
   openExternal(url: string): Promise<void>;
   getThemeMode(): Promise<"system" | "light" | "dark">;
   getResolvedTheme(): Promise<"light" | "dark">;

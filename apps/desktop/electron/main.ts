@@ -471,10 +471,14 @@ function createWindow(): BrowserWindow {
     minHeight: 600,
     transparent: enableTransparency,
     vibrancy: process.platform === "darwin" && enableTransparency ? "under-window" : undefined,
-    titleBarStyle: "hiddenInset",
+    // macOS keeps its inset traffic lights. Everywhere else the window carries no native
+    // title bar at all, because the renderer's topbar draws its own window controls and
+    // drives moving and resizing; a transparent Windows window would lose them anyway.
+    ...(process.platform === "darwin"
+      ? { titleBarStyle: "hiddenInset" as const, trafficLightPosition: { x: 18, y: 18 } }
+      : { frame: false }),
     autoHideMenuBar: process.platform !== "darwin",
     backgroundColor: enableTransparency ? "#00000000" : currentWindowBackground(),
-    trafficLightPosition: { x: 18, y: 18 },
     show: false,
     icon: appIcon,
     webPreferences: {

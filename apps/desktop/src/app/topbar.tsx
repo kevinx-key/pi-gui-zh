@@ -3,6 +3,7 @@ import type { AppView, WorkspaceRecord, WorktreeRecord } from "../../contracts/d
 import { getSidePanelToggleShortcutLabel, type PiDesktopApi } from "../../contracts/ipc";
 import { useT } from "../i18n/i18n";
 import { SidePanelIcon } from "../ui/icons";
+import { WindowChrome, useWindowDrag } from "./window-chrome";
 
 interface TopbarProps {
   readonly activeView: AppView;
@@ -30,6 +31,7 @@ export function Topbar({
   onTogglePanel,
 }: TopbarProps) {
   const t = useT();
+  const dragHandlers = useWindowDrag(api);
   const handleDoubleClick = (event: ReactMouseEvent<HTMLElement>) => {
     const target = event.target;
     if (!(target instanceof HTMLElement) || target.closest(".topbar__actions")) return;
@@ -43,7 +45,13 @@ export function Topbar({
       : selectedWorkspace?.branchName;
 
   return (
-    <header className="topbar" data-testid="topbar" onDoubleClick={handleDoubleClick}>
+    <header
+      className="topbar"
+      data-platform={api.platform}
+      data-testid="topbar"
+      onDoubleClick={handleDoubleClick}
+      {...dragHandlers}
+    >
       <div className="topbar__title">
         <span
           className="topbar__workspace"
@@ -92,6 +100,7 @@ export function Topbar({
             </span>
           </div>
         ) : null}
+        <WindowChrome api={api} />
       </div>
     </header>
   );

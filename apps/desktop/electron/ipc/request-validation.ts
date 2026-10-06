@@ -32,6 +32,7 @@ import type {
   McpServerScope,
   NewMcpServerInput,
   TerminalSize,
+  WindowBounds,
 } from "../../contracts/ipc";
 import {
   assertScheduledTaskSchedule,
@@ -440,6 +441,31 @@ export function expectTerminalSize(value: unknown, name = "size"): TerminalSize 
     throw new TypeError(`${name}.rows must be a positive integer`);
   }
   return { cols, rows };
+}
+
+export function expectWindowBounds(value: unknown, name = "bounds"): WindowBounds {
+  const record = expectRecord(value, name);
+  return {
+    x: expectWindowInteger(record.x, `${name}.x`, -MAX_WINDOW_EDGE),
+    y: expectWindowInteger(record.y, `${name}.y`, -MAX_WINDOW_EDGE),
+    width: expectWindowInteger(record.width, `${name}.width`, 1),
+    height: expectWindowInteger(record.height, `${name}.height`, 1),
+  };
+}
+
+const MAX_WINDOW_EDGE = 100_000;
+
+/** Screens can sit left of or above the primary one, so coordinates may be negative. */
+function expectWindowInteger(value: unknown, name: string, min: number): number {
+  if (
+    typeof value !== "number" ||
+    !Number.isSafeInteger(value) ||
+    value < min ||
+    value > MAX_WINDOW_EDGE
+  ) {
+    throw new TypeError(`${name} must be an integer between ${min} and ${MAX_WINDOW_EDGE}`);
+  }
+  return value;
 }
 
 export function expectWorkspaceFileListOptions(

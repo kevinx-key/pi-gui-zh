@@ -17,6 +17,7 @@ import {
   type CustomProviderProbeResult,
   type WindowBounds,
   type WindowChromeState,
+  type TextEditMenuRequest,
   type McpServerScope,
   type McpServersSnapshot,
   type NewMcpServerInput,
@@ -599,6 +600,8 @@ contextBridge.exposeInMainWorld("piApp", {
     ipcRenderer.invoke(desktopIpc.getWindowChrome) as Promise<WindowChromeState>,
   setWindowBounds: (bounds: WindowBounds) =>
     ipcRenderer.invoke(desktopIpc.setWindowBounds, bounds) as Promise<void>,
+  showTextEditMenu: (input: TextEditMenuRequest) =>
+    ipcRenderer.invoke(desktopIpc.showTextEditMenu, input) as Promise<void>,
   openExternal: (url: string) => ipcRenderer.invoke(desktopIpc.openExternal, url) as Promise<void>,
   getThemeMode: () =>
     ipcRenderer.invoke(desktopIpc.getThemeMode) as Promise<"system" | "light" | "dark">,

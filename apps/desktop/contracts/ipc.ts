@@ -218,6 +218,7 @@ export const desktopIpc = {
   closeWindow: "pi-gui:close-window",
   getWindowChrome: "pi-gui:get-window-chrome",
   setWindowBounds: "pi-gui:set-window-bounds",
+  showTextEditMenu: "pi-gui:show-text-edit-menu",
   listWorkspaceFiles: "pi-gui:list-workspace-files",
   readWorkspaceFile: "pi-gui:read-workspace-file",
   revealWorkspaceFile: "pi-gui:reveal-workspace-file",
@@ -714,6 +715,15 @@ export interface WindowChromeState {
   readonly minHeight: number;
 }
 
+/**
+ * What the OS edit menu needs to know. A text field's own edits must run through
+ * Electron's edit commands, so the app asks main to pop the native menu instead of
+ * drawing one: pasting into a controlled field has to arrive as a real paste.
+ */
+export interface TextEditMenuRequest {
+  readonly hasSelection: boolean;
+}
+
 export interface PiDesktopApi {
   platform: NodeJS.Platform;
   versions: NodeJS.ProcessVersions;
@@ -921,6 +931,8 @@ export interface PiDesktopApi {
   getWindowChrome(): Promise<WindowChromeState>;
   /** Moves or resizes the window while a topbar gesture is in flight. */
   setWindowBounds(bounds: WindowBounds): Promise<void>;
+  /** Pops the OS cut/copy/paste menu for the focused text field. */
+  showTextEditMenu(input: TextEditMenuRequest): Promise<void>;
   openExternal(url: string): Promise<void>;
   getThemeMode(): Promise<"system" | "light" | "dark">;
   getResolvedTheme(): Promise<"light" | "dark">;

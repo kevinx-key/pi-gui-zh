@@ -32,6 +32,7 @@ import type {
   McpServerScope,
   NewMcpServerInput,
   TerminalSize,
+  TextEditMenuRequest,
   WindowBounds,
 } from "../../contracts/ipc";
 import {
@@ -451,6 +452,11 @@ export function expectWindowBounds(value: unknown, name = "bounds"): WindowBound
     width: expectWindowInteger(record.width, `${name}.width`, 1),
     height: expectWindowInteger(record.height, `${name}.height`, 1),
   };
+}
+
+export function expectTextEditMenuRequest(value: unknown, name = "request"): TextEditMenuRequest {
+  const record = expectRecord(value, name);
+  return { hasSelection: expectBoolean(record.hasSelection, `${name}.hasSelection`) };
 }
 
 const MAX_WINDOW_EDGE = 100_000;

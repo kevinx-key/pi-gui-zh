@@ -1,4 +1,4 @@
-import { ipcMain, shell, type BrowserWindow, type IpcMainInvokeEvent } from "electron";
+import { ipcMain, Menu, shell, type BrowserWindow, type IpcMainInvokeEvent } from "electron";
 import path from "node:path";
 import type { SessionRef } from "@pi-gui/session-driver";
 import type {
@@ -15,8 +15,10 @@ import {
   type ChangedFilesResult,
   type CustomProviderProbeInput,
   type CustomProviderProbeResult,
+  type TextEditMenuRequest,
   type WindowChromeState,
 } from "../../contracts/ipc";
+import { t } from "../../contracts/i18n";
 import type { DesktopAppStore } from "../application/app-store";
 import type { NotificationPermissionService } from "../platform/notification-permission";
 import type { TerminalService } from "../platform/terminal-service";
@@ -67,6 +69,7 @@ import {
   expectWorkspaceFileListOptions,
   expectExtensionActionRequest,
   expectWindowBounds,
+  expectTextEditMenuRequest,
 } from "./request-validation";
 import { runExtensionAction, type AppOperationHost } from "../extensions/app-operations";
 
@@ -953,6 +956,26 @@ export function registerDesktopIpc({
 
   registerWorkspaceFileIpc(windows, owners.workspace, capabilities);
   registerWindowChromeIpc(windows);
+  registerTextEditMenuIpc(windows);
+}
+
+/**
+ * The OS edit menu for text fields. Electron shows no context menu of its own, and pasting
+ * into a controlled field has to go through the webContents edit commands rather than a
+ * clipboard read plus a DOM write, so the menu is built here from roles.
+ */
+function registerTextEditMenuIpc(windows: WindowOwner): void {
+  ipcMain.handle(desktopIpc.showTextEditMenu, (event, rawRequest: unknown) => {
+    const window = senderWindow(windows, event);
+    const { hasSelection } = expectTextEditMenuRequest(rawRequest);
+    Menu.buildFromTemplate([
+      { role: "cut", label: t("Cut"), enabled: hasSelection },
+      { role: "copy", label: t("Copy"), enabled: hasSelection },
+      { role: "paste", label: t("Paste") },
+      { type: "separator" },
+      { role: "selectAll", label: t("Select all") },
+    ]).popup({ window });
+  });
 }
 
 /**

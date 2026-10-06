@@ -4,6 +4,7 @@ import { getSidePanelToggleShortcutLabel, type PiDesktopApi } from "../../contra
 import { useT } from "../i18n/i18n";
 import { SidePanelIcon } from "../ui/icons";
 import { WindowChrome, useWindowDrag } from "./window-chrome";
+import { useTextEditMenu } from "./text-edit-menu";
 
 interface TopbarProps {
   readonly activeView: AppView;
@@ -32,6 +33,7 @@ export function Topbar({
 }: TopbarProps) {
   const t = useT();
   const dragHandlers = useWindowDrag(api);
+  useTextEditMenu(api);
   const handleDoubleClick = (event: ReactMouseEvent<HTMLElement>) => {
     const target = event.target;
     if (!(target instanceof HTMLElement) || target.closest(".topbar__actions")) return;

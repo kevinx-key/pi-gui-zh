@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { ExtensionAction, ExtensionCard, ExtensionCardTone } from "@pi-gui/session-driver";
 import { ExtensionIcon } from "../../ui/icons";
+import { useT, type MessageParams } from "../../i18n/i18n";
 
 /** Asks the app to run one of the fixed actions an extension's button can name. */
 export type RunExtensionAction = (action: ExtensionAction) => void;
@@ -21,7 +22,8 @@ export function ExtensionCardItem({
   readonly controls?: ReactNode;
   readonly collapsed?: boolean;
 }) {
-  const toneLabel = cardToneLabel(card.tone);
+  const t = useT();
+  const toneLabel = cardToneLabel(card.tone, t);
   const hasBody = !collapsed && (card.rows.length > 0 || card.actions.length > 0);
   return (
     <section
@@ -50,7 +52,7 @@ export function ExtensionCardItem({
             </li>
           ))}
           {card.actions.map((action, index) => {
-            const target = actionTarget(action);
+            const target = actionTarget(action, t);
             return (
               <li key={`action:${index}`}>
                 <button
@@ -74,18 +76,21 @@ export function ExtensionCardItem({
 }
 
 /** What a button will touch, shown beside its label so the user knows before clicking. */
-function actionTarget(action: ExtensionAction): string {
+function actionTarget(
+  action: ExtensionAction,
+  t: (source: string, params?: MessageParams) => string,
+): string {
   switch (action.type) {
     case "openFile":
       return action.line ? `${action.path}:${action.line}` : action.path;
     case "composer":
-      return "Adds to message";
+      return t("Adds to message");
     case "url":
       return new URL(action.url).host;
     case "command":
       return action.command;
     case "openThread":
-      return "Opens thread";
+      return t("Opens thread");
     default:
       return unhandledAction(action);
   }
@@ -95,14 +100,17 @@ function unhandledAction(action: never): string {
   return (action as ExtensionAction).label;
 }
 
-function cardToneLabel(tone: ExtensionCardTone): string | undefined {
+function cardToneLabel(
+  tone: ExtensionCardTone,
+  t: (source: string, params?: MessageParams) => string,
+): string | undefined {
   switch (tone) {
     case "success":
-      return "Passed";
+      return t("Passed");
     case "warning":
-      return "Warning";
+      return t("Warning");
     case "error":
-      return "Failed";
+      return t("Failed");
     case "neutral":
       return undefined;
   }

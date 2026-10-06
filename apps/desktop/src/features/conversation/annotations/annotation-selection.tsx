@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CloseIcon } from "../../../ui/icons";
+import { useT } from "../../../i18n/i18n";
 import { ANNOTATION_ROOT_ATTRIBUTE, type OpenAnnotation } from "./annotation-markers";
 import { rangeToOffsets } from "./text-offsets";
 import type { TranscriptAnnotations } from "./use-transcript-annotations";
@@ -272,6 +273,7 @@ function AddToChatButton({
   readonly platform: NodeJS.Platform;
   readonly onAdd: () => void;
 }) {
+  const t = useT();
   return (
     <div
       className="annotation-popover annotation-add"
@@ -285,7 +287,7 @@ function AddToChatButton({
         onMouseDown={(event) => event.preventDefault()}
         onClick={onAdd}
       >
-        <span>Add to Chat</span>
+        <span>{t("Add to Chat")}</span>
         <span className="annotation-add__keys" aria-hidden="true">
           {addToChatShortcutKeys(platform).map((key) => (
             <kbd key={key}>{key}</kbd>
@@ -309,6 +311,7 @@ function AnnotationEditor({
   readonly onRemove: () => void;
   readonly onClose: () => void;
 }) {
+  const t = useT();
   const [value, setValue] = useState(note);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const closingRef = useRef(false);
@@ -337,9 +340,9 @@ function AnnotationEditor({
       style={{ top: popoverTop(anchor, 44), left: Math.max(POPOVER_GAP, anchor.left - 24) }}
     >
       <input
-        aria-label="Annotation comment"
+        aria-label={t("Annotation comment")}
         className="annotation-editor__input"
-        placeholder="Add an optional comment…"
+        placeholder={t("Add an optional comment…")}
         ref={inputRef}
         value={value}
         onBlur={() => finish(true)}
@@ -356,10 +359,10 @@ function AnnotationEditor({
         }}
       />
       <button
-        aria-label="Remove annotation"
+        aria-label={t("Remove annotation")}
         className="annotation-editor__remove"
         data-testid="annotation-remove"
-        title="Remove annotation"
+        title={t("Remove annotation")}
         type="button"
         onMouseDown={(event) => event.preventDefault()}
         onClick={() => {

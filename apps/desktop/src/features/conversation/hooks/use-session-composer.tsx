@@ -24,6 +24,7 @@ import { parseTreeComposerCommand } from "../composer-commands";
 import { formatAnnotatedPrompt } from "../annotations/annotation-prompt";
 import type { TranscriptAnnotations } from "../annotations/use-transcript-annotations";
 import type { PiDesktopApi } from "../../../../contracts/ipc";
+import { useT } from "../../../i18n/i18n";
 
 interface UseSessionComposerParams {
   readonly api: PiDesktopApi | undefined;
@@ -67,6 +68,7 @@ export function useSessionComposer(params: UseSessionComposerParams) {
     annotations,
   } = params;
 
+  const t = useT();
   const [attachmentsClearedOnSubmit, setAttachmentsClearedOnSubmit] = useState(false);
   const composerAttachments = attachmentsClearedOnSubmit
     ? []
@@ -106,7 +108,7 @@ export function useSessionComposer(params: UseSessionComposerParams) {
         current
           ? {
               ...current,
-              lastError: treeCommand.message,
+              lastError: t(treeCommand.message),
             }
           : current,
       );

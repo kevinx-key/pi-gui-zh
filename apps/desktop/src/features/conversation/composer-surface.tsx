@@ -29,6 +29,7 @@ import {
 } from "../../ui/icons";
 import { ImageAttachmentThumb } from "./image-attachment-thumb";
 import { QueuedComposerMessages } from "./queued-composer-messages";
+import { useT } from "../../i18n/i18n";
 
 type ExtensionMentionOption = Extract<MentionOption, { kind: "extension" }>;
 type FileMentionOption = Extract<MentionOption, { kind: "file" }>;
@@ -128,6 +129,7 @@ export function ComposerSurface({
   footer,
   annotationChip,
 }: ComposerSurfaceProps) {
+  const t = useT();
   const [isDragActive, setIsDragActive] = useState(false);
   const dragDepthRef = useRef(0);
 
@@ -183,7 +185,7 @@ export function ComposerSurface({
     >
       {isDragActive ? (
         <div className="composer__drop-indicator" data-testid="composer-drop-indicator">
-          Drop images or files to attach
+          {t("Drop images or files to attach")}
         </div>
       ) : null}
       {activeSlashCommand ? (
@@ -192,13 +194,13 @@ export function ComposerSurface({
             <SlashCommandIcon command={activeSlashCommand} />
           </span>
           <span className="composer__slash-intent-body">
-            <span className="composer__slash-intent-title">{activeSlashCommand.title}</span>
+            <span className="composer__slash-intent-title">{t(activeSlashCommand.title)}</span>
             {activeSlashCommandMeta ? (
               <span className="composer__slash-intent-meta">{activeSlashCommandMeta}</span>
             ) : null}
           </span>
           <button
-            aria-label={`Clear ${activeSlashCommand.title}`}
+            aria-label={t("Clear {title}", { title: t(activeSlashCommand.title) })}
             className="composer__slash-intent-clear"
             type="button"
             onClick={onClearSlashCommand}
@@ -238,7 +240,7 @@ export function ComposerSurface({
                 </>
               )}
               <button
-                aria-label={`Remove ${attachment.name}`}
+                aria-label={t("Remove {name}", { name: attachment.name })}
                 className="composer-attachment__remove"
                 type="button"
                 onClick={() => onRemoveAttachment(attachment.id)}
@@ -298,7 +300,7 @@ export function ComposerSurface({
                         <span className="slash-menu__section-icon" aria-hidden="true">
                           {section.id === "runtime" ? <SparkIcon /> : <SettingsIcon />}
                         </span>
-                        <span>{section.title}</span>
+                        <span>{t(section.title)}</span>
                       </div>
                     ) : null}
                     {section.items.map((command) => (
@@ -314,19 +316,21 @@ export function ComposerSurface({
                         {command.section === "runtime" ? (
                           <span className="slash-menu__content slash-menu__content--skill">
                             <span className="slash-menu__line">
-                              <span className="slash-menu__title">{command.title}</span>
+                              <span className="slash-menu__title">{t(command.title)}</span>
                               {command.sourceLabel ? (
                                 <span className="slash-menu__skill-badge">
-                                  {command.sourceLabel}
+                                  {t(command.sourceLabel)}
                                 </span>
                               ) : null}
                               {command.compatibility?.status === "terminal-only" ? (
                                 <span className="slash-menu__skill-badge slash-menu__skill-badge--warning">
-                                  Terminal-only
+                                  {t("Terminal-only")}
                                 </span>
                               ) : null}
                             </span>
-                            <span className="slash-menu__description">{command.description}</span>
+                            <span className="slash-menu__description">
+                              {t(command.description)}
+                            </span>
                             <span className="slash-menu__meta">
                               <span className="slash-menu__command slash-menu__command--skill">
                                 {command.command}
@@ -336,10 +340,12 @@ export function ComposerSurface({
                         ) : (
                           <span className="slash-menu__content">
                             <span className="slash-menu__line">
-                              <span className="slash-menu__title">{command.title}</span>
+                              <span className="slash-menu__title">{t(command.title)}</span>
                               <span className="slash-menu__command">{command.command}</span>
                             </span>
-                            <span className="slash-menu__description">{command.description}</span>
+                            <span className="slash-menu__description">
+                              {t(command.description)}
+                            </span>
                           </span>
                         )}
                       </button>
@@ -354,7 +360,7 @@ export function ComposerSurface({
                 data-testid="slash-options-menu"
                 onWheel={(event) => event.stopPropagation()}
               >
-                <div className="slash-menu__search">{selectedSlashCommand.title}</div>
+                <div className="slash-menu__search">{t(selectedSlashCommand.title)}</div>
                 {slashOptions.length > 0 ? (
                   slashOptions.map((option) => (
                     <button
@@ -363,15 +369,17 @@ export function ComposerSurface({
                       type="button"
                       onClick={() => onSelectSlashOption(option)}
                     >
-                      <span className="slash-menu__option-title">{option.label}</span>
-                      <span className="slash-menu__option-description">{option.description}</span>
+                      <span className="slash-menu__option-title">{t(option.label)}</span>
+                      <span className="slash-menu__option-description">
+                        {t(option.description)}
+                      </span>
                     </button>
                   ))
                 ) : slashOptionEmptyState ? (
                   <div className="slash-menu__empty">
-                    <div className="slash-menu__empty-title">{slashOptionEmptyState.title}</div>
+                    <div className="slash-menu__empty-title">{t(slashOptionEmptyState.title)}</div>
                     <div className="slash-menu__empty-description">
-                      {slashOptionEmptyState.description}
+                      {t(slashOptionEmptyState.description)}
                     </div>
                   </div>
                 ) : null}
@@ -380,7 +388,7 @@ export function ComposerSurface({
           </div>
         ) : null}
         <textarea
-          aria-label={textareaLabel}
+          aria-label={t(textareaLabel)}
           className={textareaClassName}
           data-testid={textareaTestId}
           ref={composerRef}
@@ -389,7 +397,7 @@ export function ComposerSurface({
             setComposerDraft(event.target.value);
           }}
           onKeyDown={onComposerKeyDown}
-          placeholder={textareaPlaceholder}
+          placeholder={t(textareaPlaceholder)}
         />
         <div className="composer__bar">{footer}</div>
       </div>
@@ -456,9 +464,10 @@ function MentionMenuSection({
   readonly onSelect: (option: MentionOption) => void;
   readonly onEnableExtension: (option: ExtensionMentionOption) => void;
 }) {
+  const t = useT();
   return (
     <div className="mention-menu__section">
-      <div className="mention-menu__section-title">{title}</div>
+      <div className="mention-menu__section-title">{t(title)}</div>
       {options.map((option) => (
         <MentionMenuItem
           key={option.id}
@@ -483,6 +492,7 @@ function MentionMenuItem({
   readonly onSelect: (option: MentionOption) => void;
   readonly onEnableExtension: (option: ExtensionMentionOption) => void;
 }) {
+  const t = useT();
   if (option.kind === "extension") {
     return (
       <div
@@ -508,22 +518,22 @@ function MentionMenuItem({
               <span className="mention-menu__filename">{option.displayName}</span>
               {option.enabled ? null : (
                 <span className="mention-menu__badge">
-                  {option.enabling ? "Enabling" : "Disabled"}
+                  {option.enabling ? t("Enabling") : t("Disabled")}
                 </span>
               )}
             </span>
-            <span className="mention-menu__description">{option.description}</span>
+            <span className="mention-menu__description">{t(option.description)}</span>
           </span>
         </button>
         {option.enabled ? null : (
           <button
-            aria-label={`Enable ${option.displayName}`}
+            aria-label={t("Enable {name}", { name: option.displayName })}
             className="mention-menu__enable"
             disabled={option.enabling}
             type="button"
             onClick={() => onEnableExtension(option)}
           >
-            {option.enabling ? "Enabling" : "Enable"}
+            {option.enabling ? t("Enabling") : t("Enable")}
           </button>
         )}
       </div>

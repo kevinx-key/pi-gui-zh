@@ -14,6 +14,8 @@ concurrency:
 
 jobs:
   release-preflight:
+    # Upstream-only pipeline (needs signing/Homebrew secrets). This fork publishes via release-zh.yml.
+    if: github.repository == 'minghinmatthewlam/pi-gui'
     runs-on: ubuntu-latest
 
     steps:

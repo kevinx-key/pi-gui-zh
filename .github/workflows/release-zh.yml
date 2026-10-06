@@ -1,0 +1,82 @@
+name: Release (Windows 简体中文版)
+
+# 本 fork 的 Windows 发布流程：打 tag 或手动触发时，在 GitHub 云端构建
+# 安装版 + 便携版并发布到 Release。无需任何签名密钥（产物未签名）。
+on:
+  push:
+    tags:
+      - "v*-zh*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "发布 tag（如 v1.0.1-zh.2）"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-zh-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm --filter @pi-gui/desktop run typecheck
+
+      - name: Package Windows
+        shell: bash
+        run: |
+          cd apps/desktop
+          pnpm run build
+          node scripts/package-windows.mjs --win --publish never --config.npmRebuild=false
+
+      - name: Upload installers
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-installers
+          path: |
+            apps/desktop/release/*.exe
+            apps/desktop/release/latest.yml
+            apps/desktop/release/*.blockmap
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    needs: build-windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download installers
+        uses: actions/download-artifact@v8
+        with:
+          name: windows-installers
+          path: dist
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: pi-gui 简体中文版 ${{ github.event.inputs.tag || github.ref_name }}
+          files: dist/*
+          draft: false
+          generate_release_notes: true
+          fail_on_unmatched_files: true

@@ -1,4 +1,5 @@
 import { Component, Fragment, type ReactNode } from "react";
+import { useT } from "../i18n/i18n";
 import type { DesktopAppView, StateHydrationFailure } from "./desktop-app-state";
 
 export type DesktopStartupSurfaceState =
@@ -64,6 +65,7 @@ interface DesktopStartupSurfaceProps {
 }
 
 export function DesktopStartupSurface({ state, onRetry, onRelaunch }: DesktopStartupSurfaceProps) {
+  const t = useT();
   const copy = startupSurfaceCopy(state);
   const retrying = state.kind === "failed" ? state.retrying : false;
   const showActions = copy.status !== "loading";
@@ -82,8 +84,8 @@ export function DesktopStartupSurface({ state, onRetry, onRelaunch }: DesktopSta
         data-failure={state.kind === "failed" ? state.failure.code : undefined}
       >
         <div className="loading-card__eyebrow">pi-gui</div>
-        <h1>{copy.title}</h1>
-        <p>{copy.body}</p>
+        <h1>{t(copy.title)}</h1>
+        <p>{t(copy.body)}</p>
         {showActions ? (
           <div className="loading-card__actions">
             <button
@@ -93,7 +95,7 @@ export function DesktopStartupSurface({ state, onRetry, onRelaunch }: DesktopSta
               disabled={retrying}
               onClick={onRetry}
             >
-              {retrying ? "Retrying…" : "Retry"}
+              {retrying ? t("Retrying…") : t("Retry")}
             </button>
             {showRelaunch ? (
               <button
@@ -102,7 +104,7 @@ export function DesktopStartupSurface({ state, onRetry, onRelaunch }: DesktopSta
                 type="button"
                 onClick={onRelaunch}
               >
-                Relaunch pi-gui
+                {t("Relaunch pi-gui")}
               </button>
             ) : null}
           </div>

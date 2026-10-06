@@ -288,4 +288,45 @@ export const zhCN: Readonly<Record<string, string>> = {
   "Set a default model in Settings > Models.": "在 设置 > 模型 中设置默认模型。",
   "Open Settings > Models": "打开 设置 > 模型",
   "Open Settings > Providers": "打开 设置 > 提供商",
+
+  // ── App shell ─────────────────────────────────────────
+  "Back to app": "返回应用",
+  "{title} sections": "{title}分区",
+  "Search {title}": "搜索{title}",
+  Search: "搜索",
+  "No matches for “{query}”": "没有匹配“{query}”的结果",
+  "Open a folder to begin": "打开文件夹以开始",
+  "Hide side panel": "隐藏侧面板",
+  "Show side panel": "显示侧面板",
+  "Loading sessions": "正在加载会话",
+  "The desktop shell is restoring folder and thread state from the main process.":
+    "桌面外壳正在从主进程恢复文件夹与线程状态。",
+  "Couldn't restore sessions": "无法恢复会话",
+  "The desktop shell couldn't read folder and thread state. Retry, or relaunch the app.":
+    "桌面外壳无法读取文件夹与线程状态。请重试，或重新启动应用。",
+  "The desktop shell isn't connected. Quit pi-gui and reopen it.":
+    "桌面外壳未连接。请退出 pi-gui 并重新打开。",
+  "Something went wrong": "出了点问题",
+  "The desktop window hit an unexpected error. Retry to remount, or relaunch the app.":
+    "桌面窗口遇到意外错误。请重试以重新挂载，或重新启动应用。",
+  "Retrying…": "重试中…",
+  Retry: "重试",
+  "Relaunch pi-gui": "重新启动 pi-gui",
+  "Select a workspace first.": "请先选择工作区。",
+  Workspace: "工作区",
+  Settings: "设置",
+  "Thread actions": "线程操作",
+  "Some saved workspaces could not be refreshed.": "部分已保存的工作区无法刷新。",
+  "{name} is unavailable.": "{name} 不可用。",
+  "Open a folder to start": "打开文件夹以开始",
+  "Add a project folder before creating a new thread.": "创建新线程前请先添加项目文件夹。",
+  "This session was written by a newer version of pi — some content may not display. Update pi-gui (or open it with the pi CLI) to see everything.":
+    "此会话由更新版本的 pi 写入 —— 部分内容可能无法显示。请更新 pi-gui（或使用 pi CLI 打开）以查看全部内容。",
+  "Dismiss notice": "关闭通知",
+  Dismiss: "关闭",
+  "Create a thread for this folder, then jump between sessions from the sidebar.":
+    "为此文件夹创建线程，然后从侧边栏在会话间跳转。",
+  "Add project folders, group sessions under them, and jump between threads from the sidebar.":
+    "添加项目文件夹，在其下归组会话，并从侧边栏在线程间跳转。",
+  "This file checkout is unavailable.": "此文件检出不可用。",
 };

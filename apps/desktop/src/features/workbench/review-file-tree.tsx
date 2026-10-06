@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReviewFileEntry, ReviewFileStatus } from "../../../contracts/review";
 import { ChevronDownIcon, ChevronRightIcon, MinusIcon, PlusIcon, SearchIcon } from "../../ui/icons";
+import { useT } from "../../i18n/i18n";
 import { buildFileTree, filterWorkspaceFiles, type FileTreeNode } from "./file-tree";
 
 interface ReviewFileTreeProps {
@@ -28,6 +29,7 @@ export function ReviewFileTree({
   onToggleReviewed,
   onStage,
 }: ReviewFileTreeProps) {
+  const t = useT();
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
   const listRef = useRef<HTMLDivElement | null>(null);
@@ -107,8 +109,8 @@ export function ReviewFileTree({
               <button
                 className="icon-button review-tree__stage"
                 type="button"
-                aria-label="Unstage"
-                title="Unstage file"
+                aria-label={t("Unstage")}
+                title={t("Unstage file")}
                 disabled={busy || stale || file.conflicted}
                 onClick={() => onStage(file, "unstage")}
               >
@@ -119,8 +121,8 @@ export function ReviewFileTree({
               <button
                 className="icon-button review-tree__stage"
                 type="button"
-                aria-label="Stage"
-                title="Stage file"
+                aria-label={t("Stage")}
+                title={t("Stage file")}
                 disabled={busy || stale || file.conflicted}
                 onClick={() => onStage(file, "stage")}
               >
@@ -130,7 +132,7 @@ export function ReviewFileTree({
           </span>
         ) : null}
         <input
-          aria-label={`Mark ${file.path} reviewed`}
+          aria-label={t("Mark {path} reviewed", { path: file.path })}
           className="diff-panel__reviewed-checkbox"
           data-testid={`diff-panel-reviewed-${file.path}`}
           type="checkbox"
@@ -140,7 +142,7 @@ export function ReviewFileTree({
         />
         <span
           className={`review-tree__status review-tree__status--${file.conflicted ? "conflicted" : file.status}`}
-          title={file.conflicted ? "Conflicted" : file.status}
+          title={file.conflicted ? t("Conflicted") : file.status}
         >
           {statusLetter(file.conflicted ? "conflicted" : file.status)}
         </span>
@@ -149,26 +151,26 @@ export function ReviewFileTree({
   };
 
   return (
-    <section className="review-tree" aria-label="Changed files">
+    <section className="review-tree" aria-label={t("Changed files")}>
       <div className="review-tree__header">
         <label className="review-tree__filter">
           <SearchIcon />
           <input
-            aria-label="Filter changed files"
-            placeholder="Filter files…"
+            aria-label={t("Filter changed files")}
+            placeholder={t("Filter files…")}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
         </label>
         <span className="review-tree__counter" data-testid="diff-panel-counter">
-          Reviewed {reviewedCount} of {files.length}
+          {t("Reviewed {reviewed} of {total}", { reviewed: reviewedCount, total: files.length })}
         </span>
       </div>
       <div className="review-tree__list diff-panel__file-list" ref={listRef}>
         {tree.length ? (
           tree.map((node) => renderNode(node, 0))
         ) : (
-          <div className="diff-panel__empty">No files match.</div>
+          <div className="diff-panel__empty">{t("No files match.")}</div>
         )}
       </div>
     </section>

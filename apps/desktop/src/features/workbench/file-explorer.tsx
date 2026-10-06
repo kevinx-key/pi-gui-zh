@@ -6,6 +6,7 @@ import {
   FolderIcon,
   RefreshIcon,
 } from "../../ui/icons";
+import { useT } from "../../i18n/i18n";
 import { ancestorDirectoryPaths } from "./file-workbench-state";
 import { buildFileTree, filterWorkspaceFiles, type FileTreeNode } from "./file-tree";
 
@@ -26,6 +27,7 @@ export function FileExplorer({
   onSelect,
   onRefresh,
 }: FileExplorerProps) {
+  const t = useT();
   const [filter, setFilter] = useState("");
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
   const filterActive = filter.trim().length > 0;
@@ -53,29 +55,29 @@ export function FileExplorer({
   }, [selectedPath]);
 
   const emptyCopy = error
-    ? error
+    ? t(error)
     : files === null
-      ? "Loading files..."
+      ? t("Loading files...")
       : files.length === 0
-        ? "No indexed files"
+        ? t("No indexed files")
         : visibleFiles.length === 0
-          ? "No matching files"
+          ? t("No matching files")
           : null;
 
   return (
-    <section className="file-explorer" data-testid="file-explorer" aria-label="File explorer">
+    <section className="file-explorer" data-testid="file-explorer" aria-label={t("File explorer")}>
       <div className="file-explorer__toolbar">
         <input
-          aria-label="Filter files"
+          aria-label={t("Filter files")}
           className="file-explorer__filter"
           data-testid="file-workbench-filter"
           onChange={(event) => setFilter(event.target.value)}
-          placeholder="Filter files…"
+          placeholder={t("Filter files…")}
           type="search"
           value={filter}
         />
         <button
-          aria-label="Refresh"
+          aria-label={t("Refresh")}
           className="icon-button"
           disabled={loading}
           onClick={onRefresh}

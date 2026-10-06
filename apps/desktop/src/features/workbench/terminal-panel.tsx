@@ -14,6 +14,7 @@ import type {
 } from "../../../contracts/ipc";
 import { appendTerminalReplay } from "../../../contracts/terminal-model";
 import { getActiveTheme, useActiveTheme } from "../../ui/active-theme";
+import { useT } from "../../i18n/i18n";
 import { terminalThemeFor } from "./terminal-theme";
 
 interface TerminalPanelProps {
@@ -23,6 +24,7 @@ interface TerminalPanelProps {
 }
 
 export function TerminalPanel({ workspace, sessionId, onHide }: TerminalPanelProps) {
+  const t = useT();
   const api = window.piApp;
   const panelRef = useRef<HTMLElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -325,7 +327,7 @@ export function TerminalPanel({ workspace, sessionId, onHide }: TerminalPanelPro
       data-testid="integrated-terminal"
     >
       <div className="terminal-panel__toolbar">
-        <div className="terminal-panel__tabs" role="tablist" aria-label="Terminal sessions">
+        <div className="terminal-panel__tabs" role="tablist" aria-label={t("Terminal sessions")}>
           {(panel?.sessions ?? []).map((session) => (
             <div
               key={session.id}
@@ -351,7 +353,7 @@ export function TerminalPanel({ workspace, sessionId, onHide }: TerminalPanelPro
               <button
                 type="button"
                 className="terminal-panel__tab-close"
-                aria-label={`Close ${session.title}`}
+                aria-label={t("Close {name}", { name: session.title })}
                 onClick={(event) => {
                   event.stopPropagation();
                   void closeTerminal(session.id).catch((error: unknown) => {
@@ -368,8 +370,8 @@ export function TerminalPanel({ workspace, sessionId, onHide }: TerminalPanelPro
           <button
             type="button"
             className="icon-button terminal-panel__action"
-            title="New terminal"
-            aria-label="New terminal"
+            title={t("New terminal")}
+            aria-label={t("New terminal")}
             onClick={() =>
               void createTerminal().catch((error: unknown) => {
                 setError(error instanceof Error ? error.message : String(error));
@@ -381,8 +383,8 @@ export function TerminalPanel({ workspace, sessionId, onHide }: TerminalPanelPro
           <button
             type="button"
             className="icon-button terminal-panel__action"
-            title="Restart terminal"
-            aria-label="Restart terminal"
+            title={t("Restart terminal")}
+            aria-label={t("Restart terminal")}
             onClick={() =>
               void restartTerminal().catch((error: unknown) => {
                 setError(error instanceof Error ? error.message : String(error));

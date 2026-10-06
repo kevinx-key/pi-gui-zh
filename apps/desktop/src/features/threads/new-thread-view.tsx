@@ -14,6 +14,7 @@ import type {
   WorkspaceRecord,
 } from "../../../contracts/desktop-state";
 import type { MentionOption } from "../conversation/hooks/use-mention-menu";
+import { useT } from "../../i18n/i18n";
 import { ArrowUpIcon, PiLogoMark, PlusIcon } from "../../ui/icons";
 import {
   MODEL_OPTIONS_EMPTY_TITLE,
@@ -124,6 +125,7 @@ export function NewThreadView({
   onRemoveAttachment,
   onSubmit,
 }: NewThreadViewProps) {
+  const t = useT();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const workspace = workspaces.find((entry) => entry.id === selectedWorkspaceId);
 
@@ -145,11 +147,12 @@ export function NewThreadView({
     return (
       <section className="canvas canvas--empty">
         <div className="empty-panel">
-          <div className="session-header__eyebrow">New thread</div>
-          <h1>Open a folder to begin</h1>
+          <div className="session-header__eyebrow">{t("New thread")}</div>
+          <h1>{t("Open a folder to begin")}</h1>
           <p>
-            Select a repository from the sidebar first, then start a local or worktree-backed
-            thread.
+            {t(
+              "Select a repository from the sidebar first, then start a local or worktree-backed thread.",
+            )}
           </p>
         </div>
       </section>
@@ -163,10 +166,10 @@ export function NewThreadView({
           <div className="new-thread__logo" data-testid="new-thread-logo">
             <PiLogoMark />
           </div>
-          <div className="new-thread__eyebrow">New thread</div>
-          <h1 className="new-thread__title">Let&apos;s build</h1>
+          <div className="new-thread__eyebrow">{t("New thread")}</div>
+          <h1 className="new-thread__title">{t("Let's build")}</h1>
           <label className="new-thread__workspace-picker">
-            <span className="sr-only">Workspace</span>
+            <span className="sr-only">{t("Workspace")}</span>
             <select
               className="new-thread__workspace"
               value={workspace.id}
@@ -221,10 +224,10 @@ export function NewThreadView({
               selectedMentionIndex={selectedMentionIndex}
               onSelectMention={onSelectMention}
               onEnableMentionExtension={onEnableMentionExtension}
-              textareaLabel="New thread prompt"
+              textareaLabel={t("New thread prompt")}
               textareaTestId="new-thread-composer"
               textareaClassName="new-thread__textarea"
-              textareaPlaceholder="Ask pi anything, use / for commands and skills"
+              textareaPlaceholder={t("Ask pi anything, use / for commands and skills")}
               footer={
                 <NewThreadComposerFooter
                   runtime={runtime}
@@ -287,6 +290,7 @@ function NewThreadComposerFooter({
   onAddAttachments,
   onSubmit,
 }: NewThreadComposerFooterProps) {
+  const t = useT();
   return (
     <>
       <div className="composer__footer">
@@ -298,14 +302,14 @@ function NewThreadComposerFooter({
                 type="button"
                 onClick={() => onSelectEnvironment("local")}
               >
-                <span>Local</span>
+                <span>{t("Local")}</span>
               </button>
               <button
                 className={`new-thread__environment ${environment === "worktree" ? "new-thread__environment--active" : ""}`}
                 type="button"
                 onClick={() => onSelectEnvironment("worktree")}
               >
-                <span>Worktree</span>
+                <span>{t("Worktree")}</span>
               </button>
             </div>
             <span className="new-thread__hint-separator">·</span>
@@ -344,7 +348,7 @@ function NewThreadComposerFooter({
               }}
             />
             <button
-              aria-label="Attach files"
+              aria-label={t("Attach files")}
               className="icon-button composer__attach"
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -352,7 +356,7 @@ function NewThreadComposerFooter({
               <PlusIcon />
             </button>
             <button
-              aria-label="Start thread"
+              aria-label={t("Start thread")}
               className="button button--primary button--cta-icon"
               type="button"
               disabled={!hasContent || modelOnboarding.requiresModelSelection}

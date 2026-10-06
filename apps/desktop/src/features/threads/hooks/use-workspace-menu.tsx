@@ -13,6 +13,7 @@ import type {
   WorktreeRecord,
 } from "../../../../contracts/desktop-state";
 import type { PiDesktopApi } from "../../../../contracts/ipc";
+import { t } from "../../../../contracts/i18n";
 
 interface UseWorkspaceMenuParams {
   readonly api: PiDesktopApi | undefined;
@@ -142,7 +143,7 @@ export function useWorkspaceMenu(params: UseWorkspaceMenuParams): WorkspaceMenuS
 
   const removeWorkspace = (workspace: WorkspaceRecord) => {
     const confirmed = window.confirm(
-      `Remove ${workspace.name} from pi-gui? This will not delete any files.`,
+      t("Remove {name} from pi-gui? This will not delete any files.", { name: workspace.name }),
     );
     setWorkspaceMenuId(null);
     setWorkspaceRenameId(null);
@@ -174,7 +175,9 @@ export function useWorkspaceMenu(params: UseWorkspaceMenuParams): WorkspaceMenuS
 
   const removeWorktree = (workspaceId: string, worktree: WorktreeRecord) => {
     const confirmed = window.confirm(
-      `Remove worktree ${worktree.name}? This removes the git worktree from disk.`,
+      t("Remove worktree {name}? This removes the git worktree from disk.", {
+        name: worktree.name,
+      }),
     );
     if (!confirmed || !api) {
       return;

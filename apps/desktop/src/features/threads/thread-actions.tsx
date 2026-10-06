@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useT } from "../../i18n/i18n";
 import type { SessionRecord } from "../../../contracts/desktop-state";
 import { formatShortcut } from "../../../contracts/ipc";
 import {
@@ -130,6 +131,7 @@ interface ThreadActionsMenuProps {
 }
 
 export function ThreadActionsMenu({ actions, className }: ThreadActionsMenuProps) {
+  const t = useT();
   return (
     <div className={`workspace-menu ${className}`} role="menu">
       {actions.map((action) => (
@@ -144,7 +146,7 @@ export function ThreadActionsMenu({ actions, className }: ThreadActionsMenuProps
             action.run();
           }}
         >
-          <span>{action.title}</span>
+          <span>{t(action.title)}</span>
           {action.hint ? (
             <span className="workspace-menu__shortcut" aria-hidden="true">
               {action.hint}

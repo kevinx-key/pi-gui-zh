@@ -20,6 +20,7 @@ import {
   type WorkspaceRecord,
 } from "../../../../contracts/desktop-state";
 import { acceptComposerAttachments } from "../../../../contracts/composer-attachments";
+import { t } from "../../../../contracts/i18n";
 import { updateSnapshot } from "../../../app/desktop-app-state";
 import {
   extractFilesFromDataTransfer,
@@ -301,7 +302,7 @@ export function useNewThreadController(params: UseNewThreadControllerParams) {
       return;
     }
     if (treeCommand?.type === "tree") {
-      setComposerError("/tree is only available inside an existing session.");
+      setComposerError(t("/tree is only available inside an existing session."));
       return;
     }
     const input: StartThreadInput = {

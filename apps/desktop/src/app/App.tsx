@@ -1207,7 +1207,6 @@ export default function App() {
                   onOpen={() => setScheduledEditor({ mode: "edit", taskId: scheduledBinding.id })}
                 />
               ) : null}
-              {/* A question belongs to this conversation: it waits above its composer, in place. */}
               {extensionDialogView.dialog ? (
                 <ExtensionDialog
                   dialog={extensionDialogView.dialog}

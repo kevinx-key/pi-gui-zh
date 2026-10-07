@@ -756,7 +756,9 @@ function reconcileDueSupervisionLoops(
     (child) => !isFinishedOrchestrationChild(child) || isChildSessionRunning(store, child),
   );
   const parentEvidenceByChild =
-    dueChildren.length > 0 ? parentEvidenceIndex(store, currentChildren) : new Map();
+    dueChildren.length > 0
+      ? parentEvidenceIndex(store, currentChildren)
+      : new Map<string, readonly OrchestrationEvidenceRecord[]>();
   const dueIds = new Set(dueChildren.map((child) => child.id));
   const children = currentChildren.map((child) => {
     if (!dueIds.has(child.id)) {

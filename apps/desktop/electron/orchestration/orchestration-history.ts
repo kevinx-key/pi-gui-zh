@@ -350,11 +350,13 @@ function appendHistoryLines(childId: string, lines: readonly string[]): void {
     }
   });
   appendQueues.set(filePath, next);
-  void next.then(() => {
-    if (appendQueues.get(filePath) === next) {
-      appendQueues.delete(filePath);
-    }
-  });
+  next
+    .then(() => {
+      if (appendQueues.get(filePath) === next) {
+        appendQueues.delete(filePath);
+      }
+    })
+    .catch(() => {});
 }
 
 function isMissingFileError(error: unknown): boolean {

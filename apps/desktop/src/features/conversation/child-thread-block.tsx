@@ -15,6 +15,9 @@ import { TimelineItem } from "./timeline-item";
 /** A child's own rows, bounded like its transcript: the block stays a summary, not a second thread. */
 const MAX_CHILD_BLOCK_ITEMS = 40;
 
+/** How many evidence rows an expanded card paints; collapsed it paints only the newest one. */
+const MAX_CHILD_EVIDENCE_ITEMS = 10;
+
 function childStatusLabel(status: OrchestrationChildThreadStatus): string {
   switch (status) {
     case "queued":
@@ -101,18 +104,25 @@ function ChildThreadEvidence({
 
   const archived = archive?.evidence ?? [];
   const records = archived.length > 0 ? archived : stateEvidence;
+  const limit = expanded ? MAX_CHILD_EVIDENCE_ITEMS : 1;
+  const visibleRecords = records.slice(-limit);
   return (
     <div className="child-thread__evidence-area" data-testid="child-thread-evidence">
       <p className="child-thread__evidence-head">
         {loading && archived.length === 0
           ? tr("Loading history…")
-          : tr("Evidence ({count})", { count: records.length })}
+          : records.length > limit
+            ? tr("Evidence ({shown} of {total})", {
+                shown: visibleRecords.length,
+                total: records.length,
+              })
+            : tr("Evidence ({count})", { count: records.length })}
       </p>
       {records.length === 0 ? (
         <p className="child-thread__evidence-note">{tr("No evidence yet.")}</p>
       ) : (
         <ul className="child-thread__evidence-list">
-          {records.map((record) => (
+          {visibleRecords.map((record) => (
             <li
               className={`child-thread__evidence child-thread__evidence--${record.status}`}
               data-testid="child-thread-evidence-row"

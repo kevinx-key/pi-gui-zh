@@ -507,6 +507,7 @@ export const zhCN: Readonly<Record<string, string>> = {
   "{count} actions": "{count} 个动作",
   "No messages yet.": "暂无消息。",
   "Evidence ({count})": "证据（{count}）",
+  "Evidence ({shown} of {total})": "证据（{shown}/{total}）",
   "Loading history…": "正在加载历史…",
   "No evidence yet.": "暂无证据记录。",
   "Earlier history is unavailable.": "更早的历史不可用。",

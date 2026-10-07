@@ -25,6 +25,7 @@ Start tracing in [main](../apps/desktop/electron/main.ts), [window owner](../app
 | Conversation owner   | Drafts, attachments, queued messages, session commands, and transcript updates | Receives only conversation maps, a runtime lookup, and conversation operations.                                                                                |
 | Workspace owner      | Workspace/session lifecycle and Git worktree use cases                         | Receives cloned workspace views, explicit session setup operations, and the catalog/worktree capabilities it needs.                                            |
 | Orchestration owner  | Child-thread policy, supervision, transcript evidence, and orchestration tools | Receives cloned orchestration views and bounded transcript, error, conversation, and workspace operations.                                                     |
+| User question owner  | Model-authored questions, the dialog they open, and the answer the tool returns | Receives a dialog sink and the pending-dialog channel of one session; owns no aggregate application state.                                                      |
 | Scheduled-task owner | Local on-device schedules, fire, interview session, and agent tools            | Receives a bounded host for the task file, session lookup, selecting create, background create, and background instruction delivery.                           |
 | Persistence owners   | UI state, attachments, catalog data, and scheduled tasks                       | Decode their own durable format before use or replacement.                                                                                                     |
 | Platform adapters    | Files, worktrees, terminal, dialogs, notifications, theme, and updates         | Stay in Electron main and expose only the required capability to IPC or an owner.                                                                              |
@@ -63,6 +64,19 @@ The Pi adapter stays thin over upstream behavior. Required access to private Pi 
 
 Do not redeclare package-owned interfaces in ambient vendor files. Validate external data at the package or persistence boundary, then use the trusted contract internally.
 
+## Child threads in the parent window
+
+A `create_child_thread` call runs a real session in the same workspace, but it is not a second thread
+of its own. Main projects each child's status, transcript text and recent timeline items from that
+session into `orchestrationChildren` (`app-store-orchestration.ts` -> `projectOrchestrationChild`),
+and the renderer draws them as a sub-agent block under the tool row that started them
+(`child-thread-block.tsx`, matched by the child's `sourceToolCallId`). `thread-groups.ts` keeps child
+sessions out of the sidebar, except the one the window is on, so opening a child never leaves the
+list without a selected row. A question a child asks is answered by the parent window, because the
+child's session has no row a user could open to see its dialog (`conversation-overlays.ts`). The
+child's `timeline` is a live projection and is never persisted: a stored child carries an empty one,
+like its transcript text.
+
 ## Review and captured turns
 
 The renderer [`DiffPanel`](../apps/desktop/src/features/workbench/diff-panel.tsx) requests one explicit checkout and [review scope](../apps/desktop/contracts/review.ts). [`ReviewOwner`](../apps/desktop/electron/workbench/review-owner.ts) retains comparison/file identities, [`git-review.ts`](../apps/desktop/electron/platform/files/git-review.ts) owns Git reads and staging, and [`reviewed-store.ts`](../apps/desktop/electron/workbench/reviewed-store.ts) owns durable marks. Available, stale, unavailable and failed results remain distinct. Refresh can replace an immutable comparison but cannot overwrite the user's saved scope or file selection.
@@ -99,6 +113,7 @@ apps/desktop/
     conversation/        session commands, drafts, transcript, visibility
     workspace/           workspace, session, and worktree use cases
     orchestration/       child-thread policy and supervision
+    user-questions/      the `ask_user` tool and the dialog it waits on
     scheduled-tasks/     local schedules, fire, and agent tools
     workbench/           immutable reviews, reviewed marks, turn checkpoint store
     extensions/          registered view hosts, contained assets, narrow host actions

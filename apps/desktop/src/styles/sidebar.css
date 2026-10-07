@@ -699,6 +699,25 @@
   min-width: 0;
 }
 
+/* Marks the child session a window is showing: it is not a normal row of the list. */
+.session-row__badge {
+  flex: none;
+  padding: 1px 6px;
+  border: 1px solid var(--accent-tint-border);
+  border-radius: var(--radius-pill);
+  background: var(--accent-tint-bg);
+  color: var(--muted-strong);
+  font-size: 10px;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+/* A background thread is waiting on an answer: it says so while the user is elsewhere. */
+.session-row__badge--waiting {
+  border-color: color-mix(in srgb, var(--status-warning) 32%, transparent);
+  background: color-mix(in srgb, var(--status-warning) 14%, transparent);
+}
+
 .session-row__context {
   font-size: 11px;
   color: var(--muted-soft);

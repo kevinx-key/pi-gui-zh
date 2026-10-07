@@ -11,6 +11,7 @@ import type {
   DisplayTimelineItem,
   TimelineTranscriptItem,
 } from "../../../contracts/timeline-types";
+import type { OrchestrationChildThread } from "../../../contracts/desktop-state";
 import type { ScheduledTaskOrigin } from "../../../contracts/scheduled-tasks";
 import type { ExtensionToolLabels } from "../../../contracts/tool-labels";
 import { ExtensionToolLabelsContext } from "../extensions/extension-tool-labels";
@@ -56,6 +57,9 @@ interface ConversationTimelineProps {
   readonly workspacePath?: string;
   readonly annotations?: TranscriptAnnotations;
   readonly platform: NodeJS.Platform;
+  /** Child threads the selected session started, keyed by the tool call that started each one. */
+  readonly childThreadsByToolCallId?: ReadonlyMap<string, OrchestrationChildThread>;
+  readonly onOpenChildSession?: (thread: OrchestrationChildThread) => void;
 }
 const NO_MARKERS: readonly AnnotationMarker[] = [];
 export function ConversationTimeline({
@@ -75,6 +79,8 @@ export function ConversationTimeline({
   workspacePath,
   annotations,
   platform,
+  childThreadsByToolCallId,
+  onOpenChildSession,
 }: ConversationTimelineProps) {
   const t = useT();
   const surfaceRef = useRef<HTMLDivElement | null>(null);
@@ -195,6 +201,10 @@ export function ConversationTimeline({
                     onOpenWorkspaceFileLine={onOpenWorkspaceFileLine}
                     onExtensionAction={onExtensionAction}
                     workspacePath={workspacePath}
+                    childThread={
+                      item.kind === "tool" ? childThreadsByToolCallId?.get(item.callId) : undefined
+                    }
+                    onOpenChildSession={onOpenChildSession}
                     annotationMarkers={
                       markersByMessage.get(item.id) ??
                       (item.kind === "message" && item.sourceMessageId
@@ -318,6 +328,8 @@ interface MeasuredTimelineItemProps {
   readonly workspacePath?: string;
   readonly annotationMarkers: readonly AnnotationMarker[];
   readonly onOpenAnnotation: OpenAnnotation;
+  readonly childThread?: OrchestrationChildThread;
+  readonly onOpenChildSession?: (thread: OrchestrationChildThread) => void;
 }
 
 function MeasuredTimelineItemBase({
@@ -339,6 +351,8 @@ function MeasuredTimelineItemBase({
   workspacePath,
   annotationMarkers,
   onOpenAnnotation,
+  childThread,
+  onOpenChildSession,
 }: MeasuredTimelineItemProps) {
   const rowRef = useRef<HTMLDivElement | null>(null);
 
@@ -387,6 +401,8 @@ function MeasuredTimelineItemBase({
           workspacePath={workspacePath}
           annotationMarkers={annotationMarkers}
           onOpenAnnotation={onOpenAnnotation}
+          childThread={childThread}
+          onOpenChildSession={onOpenChildSession}
         />
       </div>
     </div>
@@ -473,7 +489,30 @@ function areMeasuredTimelineItemPropsEqual(
     prev.workspacePath === next.workspacePath &&
     prev.annotationMarkers === next.annotationMarkers &&
     prev.onOpenAnnotation === next.onOpenAnnotation &&
+    prev.onOpenChildSession === next.onOpenChildSession &&
+    sameChildThread(prev.childThread, next.childThread) &&
     prev.scheduledOrigin?.taskId === next.scheduledOrigin?.taskId
+  );
+}
+
+/** Child records are re-projected on every event, so compare what the block actually draws. */
+function sameChildThread(
+  prev: OrchestrationChildThread | undefined,
+  next: OrchestrationChildThread | undefined,
+): boolean {
+  if (prev === next) {
+    return true;
+  }
+  if (!prev || !next) {
+    return false;
+  }
+  return (
+    prev.updatedAt === next.updatedAt &&
+    prev.status === next.status &&
+    prev.title === next.title &&
+    prev.latestTranscript === next.latestTranscript &&
+    prev.timeline.length === next.timeline.length &&
+    prev.timeline.at(-1)?.id === next.timeline.at(-1)?.id
   );
 }
 

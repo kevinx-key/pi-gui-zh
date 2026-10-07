@@ -17,4 +17,5 @@ onlyBuiltDependencies:
 # 26.16.1 regresses hoisted runtime dependency packaging; keep 26.8.1 until
 # a newer release passes packaged-runtime-deps and the packaged Electron smoke.
 patchedDependencies:
+  '@earendil-works/pi-mcp@1.0.0': patches/@earendil-works__pi-mcp@1.0.0.patch
   app-builder-lib@26.8.1: patches/app-builder-lib@26.8.1.patch

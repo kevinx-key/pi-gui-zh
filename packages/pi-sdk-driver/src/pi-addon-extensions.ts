@@ -11,13 +11,19 @@ export interface PiAddonExtensionOptions {
 }
 
 /**
+ * pi's MCP add-on name (`builtin:mcp`). It is the only add-on that connects the servers in
+ * mcp.json, so it is the one a session created with `mcp: "off"` leaves out.
+ */
+export const MCP_ADDON_EXTENSION_NAME = "mcp";
+
+/**
  * pi's own add-ons, handed to pi the way its CLI does (`dist/extensions/index.js`), so pi loads
  * them as `builtin:<name>` and a `-builtin:<name>` `extensions` setting leaves one out. The names
  * must match pi's. Kept apart from pi-gui's own built-ins, whose gating drops these flags.
  */
 const PI_ADDONS = [
   {
-    name: "mcp",
+    name: MCP_ADDON_EXTENSION_NAME,
     displayName: "MCP servers",
     description: "Connects the MCP servers in mcp.json and adds /mcp",
     create: (options: PiAddonExtensionOptions) =>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { HostUiResponse } from "@pi-gui/session-driver";
 import type { RuntimeSnapshot } from "@pi-gui/session-driver/runtime-types";
 import {
   getSelectedSession,
@@ -11,6 +12,7 @@ import {
   scheduledOriginsByMessageId,
 } from "../../contracts/scheduled-tasks";
 import { updateSnapshot, useDesktopAppState } from "./desktop-app-state";
+import { useChildThreadView, useExtensionDialogView } from "./conversation-overlays";
 import { DesktopStartupSurface, toStartupSurfaceState } from "./desktop-recovery";
 import { buildFileWorkbenchContexts } from "./file-workbench-contexts";
 import { canTogglePrimarySidebar } from "./app-shell-utils";
@@ -353,7 +355,7 @@ export default function App() {
     selectedExtensionDock,
   );
   const displayedSessionTitle = selectedExtensionUi?.title ?? selectedSession?.title ?? "";
-  const activeExtensionDialog = selectedExtensionUi?.pendingDialogs[0];
+  const extensionDialogView = useExtensionDialogView(snapshot, selectedExtensionUi);
   const selectedExtensionUiInstance =
     snapshot?.sessionExtensionUiBySession[selectedSessionKey]?.instanceId;
   const isSelectedExtensionDockExpanded =
@@ -371,6 +373,7 @@ export default function App() {
   const selectThreadRef = useRef<(target: { workspaceId: string; sessionId: string }) => void>(
     () => {},
   );
+  const childThreadView = useChildThreadView(snapshot, selectThreadRef);
   useEffect(() => {
     // Opening a thread is use; sending always happens in the thread on screen.
     if (!threadOnScreenKey) return;
@@ -824,18 +827,14 @@ export default function App() {
   };
   selectThreadRef.current = handleSelectSession;
 
-  const handleRespondToExtensionDialog = (
-    response:
-      | { readonly requestId: string; readonly value: string }
-      | { readonly requestId: string; readonly confirmed: boolean }
-      | { readonly requestId: string; readonly cancelled: true },
-  ) => {
-    if (!selectedWorkspace || !selectedSession) {
+  const handleRespondToExtensionDialog = (response: HostUiResponse) => {
+    const target = extensionDialogView.target;
+    if (!target) {
       return;
     }
 
     void updateSnapshot(setSnapshot, () =>
-      api.respondToHostUiRequest(selectedWorkspace.id, selectedSession.id, response),
+      api.respondToHostUiRequest(target.workspaceId, target.sessionId, response),
     )
       .then(() => {
         focusComposer();
@@ -1197,6 +1196,8 @@ export default function App() {
                     scheduledOrigins={scheduledOrigins}
                     annotations={transcriptAnnotations}
                     platform={api?.platform ?? "linux"}
+                    childThreadsByToolCallId={childThreadView.byToolCallId}
+                    onOpenChildSession={childThreadView.openSession}
                   />
                 </div>
               </section>
@@ -1204,6 +1205,13 @@ export default function App() {
                 <ScheduledTaskChip
                   task={scheduledBinding}
                   onOpen={() => setScheduledEditor({ mode: "edit", taskId: scheduledBinding.id })}
+                />
+              ) : null}
+              {/* A question belongs to this conversation: it waits above its composer, in place. */}
+              {extensionDialogView.dialog ? (
+                <ExtensionDialog
+                  dialog={extensionDialogView.dialog}
+                  onRespond={handleRespondToExtensionDialog}
                 />
               ) : null}
               <ComposerPanel
@@ -1283,12 +1291,6 @@ export default function App() {
                 extensionNotices={selectedExtensionUi?.notices}
                 annotations={transcriptAnnotations}
               />
-              {activeExtensionDialog ? (
-                <ExtensionDialog
-                  dialog={activeExtensionDialog}
-                  onRespond={handleRespondToExtensionDialog}
-                />
-              ) : null}
               {treeModalState.open ? (
                 <TreeModal
                   error={treeModalState.error}

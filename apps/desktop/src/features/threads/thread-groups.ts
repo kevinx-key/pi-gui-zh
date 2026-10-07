@@ -26,6 +26,10 @@ export interface ThreadListEntry {
   readonly session: SessionRecord;
   readonly environment: ThreadEnvironmentMeta;
   readonly contextLabel: string;
+  /** A session a parent thread started; it belongs to that thread, not to the sidebar. */
+  readonly childThread: boolean;
+  /** The session has a question waiting for an answer, wherever the window currently is. */
+  readonly pendingQuestion?: boolean;
 }
 
 export interface WorkspaceThreadGroup {
@@ -65,7 +69,32 @@ export function buildThreadSidebarModel(
   state: DesktopAppState,
   nowMs: number = Date.now(),
 ): ThreadSidebarModel {
-  const entries = collectThreadEntries(state);
+  const childSessionKeys = new Set(
+    state.orchestrationChildren
+      .filter((child) => child.childSessionId)
+      .map((child) => `${child.childWorkspaceId}:${child.childSessionId}`),
+  );
+  const selectedKey = `${state.selectedWorkspaceId}:${state.selectedSessionId}`;
+  const pendingQuestionKeys = new Set(
+    Object.entries(state.sessionExtensionUiBySession)
+      .filter(([, uiState]) => uiState.pendingDialogs.length > 0)
+      .map(([key]) => key),
+  );
+  const entries = collectThreadEntries(state)
+    // A child thread is drawn inside its parent's timeline, so it is not a row of its own. The one
+    // exception is the child the window is on: dropping the selected row would look broken.
+    .filter((entry) => {
+      const key = `${entry.workspaceId}:${entry.session.id}`;
+      return key === selectedKey || !childSessionKeys.has(key);
+    })
+    .map((entry) => {
+      const key = `${entry.workspaceId}:${entry.session.id}`;
+      return {
+        ...entry,
+        childThread: childSessionKeys.has(key),
+        pendingQuestion: pendingQuestionKeys.has(key),
+      };
+    });
   const pinnedThreads = entries
     .filter((entry) => !entry.session.archivedAt && Boolean(entry.session.pinnedAt))
     .sort((left, right) => comparePinnedThreads(left, right, state.pinnedSessionOrder));
@@ -137,6 +166,7 @@ function collectThreadEntries(state: DesktopAppState): ThreadListEntry[] {
           detached: !folder.branchName,
         },
         contextLabel: folder.name,
+        childThread: false,
       }));
     }
 
@@ -166,6 +196,7 @@ function collectThreadEntries(state: DesktopAppState): ThreadListEntry[] {
           label: "Local",
         },
         contextLabel: folder.name,
+        childThread: false,
       })),
       ...linkedWorkspaces.flatMap(({ workspace, worktree }) =>
         workspace.sessions.map((session) => ({
@@ -179,6 +210,7 @@ function collectThreadEntries(state: DesktopAppState): ThreadListEntry[] {
             detached: !worktree.branchName,
           },
           contextLabel: `${folder.name} / ${worktree.name}`,
+          childThread: false,
         })),
       ),
     ];

@@ -57,6 +57,18 @@ function canPublishToWindow(window: BrowserWindow): boolean {
   );
 }
 
+/** Whether a window's last published view shows this session. */
+function viewShowsSession(
+  view: WindowViewState | undefined,
+  sessionRef: SessionRef,
+): boolean {
+  return (
+    view?.activeView === "threads" &&
+    view.selectedWorkspaceId === sessionRef.workspaceId &&
+    view.selectedSessionId === sessionRef.sessionId
+  );
+}
+
 export class WindowOwner {
   private readonly lastPublishedTranscript = new Map<number, SelectedTranscriptRecord | null>();
   private readonly windows = new Set<BrowserWindow>();
@@ -193,12 +205,24 @@ export class WindowOwner {
       if (webContentsId === this.activeActionWebContentsId) {
         continue;
       }
-      const view = this.views.get(webContentsId);
-      if (
-        view?.activeView === "threads" &&
-        view.selectedWorkspaceId === sessionRef.workspaceId &&
-        view.selectedSessionId === sessionRef.sessionId
-      ) {
+      if (viewShowsSession(this.views.get(webContentsId), sessionRef)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Whether a visible window shows this session, the one running an action included. The
+   * driver's idle sweep uses this: closing a thread being read would drop its runtime under
+   * the reader, even though the next use would reopen it.
+   */
+  isSessionVisible(sessionRef: SessionRef): boolean {
+    for (const window of this.windows) {
+      if (!canPublishToWindow(window) || window.isMinimized() || !window.isVisible()) {
+        continue;
+      }
+      if (viewShowsSession(this.views.get(window.webContents.id), sessionRef)) {
         return true;
       }
     }

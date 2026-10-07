@@ -15,6 +15,7 @@ import type {
 } from "@pi-gui/session-driver/types";
 import type { ClipboardImageRead } from "./composer-attachments";
 import type { SessionRef } from "@pi-gui/session-driver/types";
+import type { HostUiResponse } from "@pi-gui/session-driver";
 import type { SaveTaskWorkbenchTemplateInput, TaskWorkbenchTemplate } from "./workbench";
 import type {
   TurnChangesInput,
@@ -41,6 +42,7 @@ import type {
   SendChildThreadFollowUpInput,
   SetChildSupervisionLoopInput,
   SelectedTranscriptRecord,
+  SessionIdleReclaimMinutes,
   StartThreadInput,
   ThemePresetId,
   ThreadGrouping,
@@ -180,6 +182,7 @@ export const desktopIpc = {
   respondToHostUiRequest: "pi-gui:respond-to-host-ui-request",
   setNotificationPreferences: "pi-gui:set-notification-preferences",
   setIntegratedTerminalShell: "pi-gui:set-integrated-terminal-shell",
+  setSessionIdleReclaimMinutes: "pi-gui:set-session-idle-reclaim-minutes",
   setEnableTransparency: "pi-gui:set-enable-transparency",
   terminalEnsurePanel: "pi-gui:terminal-ensure-panel",
   terminalCreateSession: "pi-gui:terminal-create-session",
@@ -828,15 +831,15 @@ export interface PiDesktopApi {
   respondToHostUiRequest(
     workspaceId: string,
     sessionId: string,
-    response:
-      | { readonly requestId: string; readonly value: string }
-      | { readonly requestId: string; readonly confirmed: boolean }
-      | { readonly requestId: string; readonly cancelled: true },
+    response: HostUiResponse,
   ): Promise<DesktopAppState>;
   setNotificationPreferences(
     preferences: Partial<NotificationPreferences>,
   ): Promise<DesktopAppState>;
   setIntegratedTerminalShell(shell: string): Promise<DesktopAppState>;
+  setSessionIdleReclaimMinutes(
+    sessionIdleReclaimMinutes: SessionIdleReclaimMinutes,
+  ): Promise<DesktopAppState>;
   setEnableTransparency(enabled: boolean): Promise<DesktopAppState>;
   setThemePresetId(presetId: ThemePresetId): Promise<DesktopAppState>;
   ensureTerminalPanel(

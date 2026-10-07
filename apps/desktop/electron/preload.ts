@@ -64,6 +64,7 @@ import type {
   NotificationPreferences,
   RemoveWorktreeInput,
   SendChildThreadFollowUpInput,
+  SessionIdleReclaimMinutes,
   SetChildSupervisionLoopInput,
   SelectedTranscriptRecord,
   StartThreadInput,
@@ -429,6 +430,11 @@ contextBridge.exposeInMainWorld("piApp", {
     ipcRenderer.invoke(
       desktopIpc.setIntegratedTerminalShell,
       shellPath,
+    ) as Promise<DesktopAppState>,
+  setSessionIdleReclaimMinutes: (sessionIdleReclaimMinutes: SessionIdleReclaimMinutes) =>
+    ipcRenderer.invoke(
+      desktopIpc.setSessionIdleReclaimMinutes,
+      sessionIdleReclaimMinutes,
     ) as Promise<DesktopAppState>,
   setEnableTransparency: (enabled: boolean) =>
     ipcRenderer.invoke(desktopIpc.setEnableTransparency, enabled) as Promise<DesktopAppState>,

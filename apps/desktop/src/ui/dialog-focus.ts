@@ -37,6 +37,17 @@ export function trapDialogFocus(
   }
 }
 
+/**
+ * True while a real modal dialog is open and therefore owns Escape.
+ *
+ * The chat's question card is deliberately not one of those: it sits inline in its own
+ * conversation, so a pending ask_user in another thread must never swallow the Escape that
+ * leaves a settings page.
+ */
+export function hasOpenModalDialog(): boolean {
+  return document.querySelector("[aria-modal='true'], .extension-dialog-backdrop") !== null;
+}
+
 export function restoreTopmostDialogFocus(): boolean {
   const dialogs = document.querySelectorAll<HTMLElement>("[aria-modal='true']");
   const dialog = dialogs.item(dialogs.length - 1);

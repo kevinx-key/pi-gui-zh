@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { SearchIcon } from "../ui/icons";
+import { hasOpenModalDialog } from "../ui/dialog-focus";
 import { useT } from "../i18n/i18n";
 
 export interface SecondarySurfaceNavItem {
@@ -38,7 +39,7 @@ export function SecondarySurface({
       if (event.key !== "Escape" || event.defaultPrevented || event.isComposing || event.repeat)
         return;
       // Nested dialogs own Escape, including while a pending operation disables dismissal.
-      if (document.querySelector("[aria-modal='true'], .extension-dialog-backdrop")) return;
+      if (hasOpenModalDialog()) return;
       event.preventDefault();
       backRef.current();
     };

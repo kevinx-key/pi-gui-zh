@@ -330,6 +330,16 @@ export function SecondarySurfaces({
     );
   };
 
+  const handleSetSessionIdleReclaimMinutes = (
+    sessionIdleReclaimMinutes: DesktopAppState["sessionIdleReclaimMinutes"],
+  ) => {
+    void updateSnapshot(setSnapshot, () =>
+      api.setSessionIdleReclaimMinutes(sessionIdleReclaimMinutes),
+    ).catch((error: unknown) => {
+      console.error("[renderer] setSessionIdleReclaimMinutes failed", error);
+    });
+  };
+
   const handleRequestNotificationPermission = () => {
     if (!api.requestNotificationPermission) {
       return;
@@ -450,6 +460,7 @@ export function SecondarySurfaces({
           notificationPermissionPending={notificationPermissionPending}
           modelSettingsScopeMode={snapshot.modelSettingsScopeMode}
           integratedTerminalShell={snapshot.integratedTerminalShell}
+          sessionIdleReclaimMinutes={snapshot.sessionIdleReclaimMinutes}
           themeMode={snapshot.themeMode}
           themePresetId={snapshot.themePresetId}
           enableTransparency={snapshot.enableTransparency}
@@ -464,6 +475,7 @@ export function SecondarySurfaces({
           onSetDefaultModel={handleSetDefaultModel}
           onSetNotificationPreferences={handleSetNotificationPreferences}
           onSetIntegratedTerminalShell={handleSetIntegratedTerminalShell}
+          onSetSessionIdleReclaimMinutes={handleSetSessionIdleReclaimMinutes}
           onRequestNotificationPermission={handleRequestNotificationPermission}
           onOpenSystemNotificationSettings={handleOpenSystemNotificationSettings}
           onSetScopedModelPatterns={handleSetScopedModelPatterns}

@@ -1,0 +1,59 @@
+diff --git a/dist/transports/stdio.js b/dist/transports/stdio.js
+index f57a3b19e2efb8d836cd2f7336f245f4de27fd53..60a60b343e937ef4dd47acbfabb5e2473a6fdc82 100644
+--- a/dist/transports/stdio.js
++++ b/dist/transports/stdio.js
+@@ -1,4 +1,5 @@
+ import { spawn } from "node:child_process";
++import path from "node:path";
+ import process from "node:process";
+ import crossSpawn from "cross-spawn";
+ import { McpConnectionClosedError, parseJsonRpcMessage } from "../protocol/jsonrpc.js";
+@@ -18,7 +19,7 @@ function killProcessTree(child, signal) {
+             return;
+         // Windows has no graceful signals, and cross-spawn runs `.cmd` shims through cmd.exe; killing only
+         // that would leave the server running.
+-        spawn("taskkill", ["/pid", String(pid), "/T", "/F"], { stdio: "ignore", windowsHide: true }).on("error", () => { });
++        void killWindowsProcessTree(pid);
+         return;
+     }
+     if (USE_PROCESS_GROUPS && pid !== undefined) {
+@@ -36,6 +37,23 @@ function killProcessTree(child, signal) {
+     }
+     catch { }
+ }
++function killWindowsProcessTree(pid) {
++    // Full path: the host's PATH is not guaranteed to contain System32, and a bare name can resolve to a shim.
++    // Resolves once taskkill is done; failures are logged, never thrown, since the caller is already closing.
++    const taskkill = path.join(process.env.SystemRoot ?? "C:\\Windows", "System32", "taskkill.exe");
++    return new Promise((resolve) => {
++        const killer = spawn(taskkill, ["/pid", String(pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
++        killer.on("error", (error) => {
++            console.warn(`[pi-mcp] failed to kill process tree of pid ${pid}: ${error.message}`);
++            resolve();
++        });
++        killer.on("close", (code) => {
++            if (code !== 0)
++                console.warn(`[pi-mcp] taskkill exited with code ${code} for pid ${pid}`);
++            resolve();
++        });
++    });
++}
+ function installExitHook() {
+     if (exitHookInstalled)
+         return;
+@@ -157,7 +175,14 @@ export class StdioTransport extends TransportEvents {
+             const grace = Math.min(STDIN_CLOSE_GRACE_MS, closeTimeoutMs);
+             timers.push(setTimeout(() => killProcessTree(child, "SIGTERM"), grace));
+             timers.push(setTimeout(() => killProcessTree(child, "SIGKILL"), grace + closeTimeoutMs));
+-            child.stdin?.end();
++            // The root's `close` event fires with exitCode already set, which makes the kill in that handler a
++            // no-op, and the root can exit as soon as stdin closes, so kill the tree while it is still alive
++            // and only then close stdin. Listeners are armed first: the kill itself can make `close` fire.
++            const windowsKill = process.platform === "win32" && child.pid !== undefined ? killWindowsProcessTree(child.pid) : undefined;
++            if (windowsKill)
++                void windowsKill.then(() => child.stdin?.end());
++            else
++                child.stdin?.end();
+         });
+     }
+     handleStdout(chunk) {

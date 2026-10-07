@@ -6,6 +6,7 @@ import type {
 import type {
   ModelSettingsScopeMode,
   NotificationPreferences,
+  SessionIdleReclaimMinutes,
   ThemePresetId,
   WorkspaceRecord,
 } from "../../../contracts/desktop-state";
@@ -38,6 +39,7 @@ interface SettingsViewProps {
   readonly notificationPermissionPending: boolean;
   readonly modelSettingsScopeMode: ModelSettingsScopeMode;
   readonly integratedTerminalShell: string;
+  readonly sessionIdleReclaimMinutes: SessionIdleReclaimMinutes;
   readonly themeMode: "system" | "light" | "dark";
   readonly themePresetId: ThemePresetId;
   readonly enableTransparency: boolean;
@@ -56,6 +58,7 @@ interface SettingsViewProps {
   readonly onDeleteCustomProvider: (providerId: string) => Promise<string | undefined>;
   readonly onSetNotificationPreferences: (preferences: Partial<NotificationPreferences>) => void;
   readonly onSetIntegratedTerminalShell: (shellPath: string) => void;
+  readonly onSetSessionIdleReclaimMinutes: (minutes: SessionIdleReclaimMinutes) => void;
   readonly onRequestNotificationPermission: () => void;
   readonly onOpenSystemNotificationSettings: () => void;
   readonly onSetThemeMode: (mode: "system" | "light" | "dark") => void;
@@ -76,6 +79,7 @@ export function SettingsView({
   notificationPermissionPending,
   modelSettingsScopeMode,
   integratedTerminalShell,
+  sessionIdleReclaimMinutes,
   themeMode,
   themePresetId,
   enableTransparency,
@@ -92,6 +96,7 @@ export function SettingsView({
   onDeleteCustomProvider,
   onSetNotificationPreferences,
   onSetIntegratedTerminalShell,
+  onSetSessionIdleReclaimMinutes,
   onRequestNotificationPermission,
   onOpenSystemNotificationSettings,
   onSetThemeMode,
@@ -158,8 +163,10 @@ export function SettingsView({
               runtime={runtime}
               modelSettingsScopeMode={modelSettingsScopeMode}
               integratedTerminalShell={integratedTerminalShell}
+              sessionIdleReclaimMinutes={sessionIdleReclaimMinutes}
               onSetModelSettingsScopeMode={onSetModelSettingsScopeMode}
               onSetIntegratedTerminalShell={onSetIntegratedTerminalShell}
+              onSetSessionIdleReclaimMinutes={onSetSessionIdleReclaimMinutes}
               onToggleSkillCommands={onToggleSkillCommands}
             />
           ) : null}

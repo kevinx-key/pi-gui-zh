@@ -38,6 +38,7 @@ import type {
   SessionModelSelection,
   SessionRef,
   SessionPlanLimits,
+  SessionMcpMode,
   SessionSnapshot,
   SessionUsageSnapshot,
   SessionSchemaInfo,
@@ -59,7 +60,7 @@ import {
   type BuiltinExtension,
   type BuiltinExtensionEnabled,
 } from "./builtin-extensions.js";
-import { piAddonExtensions } from "./pi-addon-extensions.js";
+import { MCP_ADDON_EXTENSION_NAME, piAddonExtensions } from "./pi-addon-extensions.js";
 import {
   acquireLeaseFile,
   currentLeaseIdentity,
@@ -183,6 +184,18 @@ export interface PiSdkDriverOptions {
   readonly desktopExtensions?: PiDesktopExtensionObserver;
   readonly onTurnCaptureBoundary?: import("@pi-gui/session-driver").TurnCaptureObserver;
   readonly turnCaptureTimeoutMs?: number;
+  /**
+   * How long a session nobody touches keeps its runtime — and with it the extension
+   * hosts and MCP child processes pi started for it. A closed session reopens from
+   * its transcript on the next use. Defaults to `DEFAULT_IDLE_SESSION_TTL_MS`; `null`
+   * (or `0`) turns reclaiming off.
+   */
+  readonly idleSessionTtlMs?: number | null;
+  /**
+   * Sessions a window shows right now. The idle sweep never closes these, so the
+   * thread on screen cannot go away under the person reading it.
+   */
+  readonly isSessionVisible?: (sessionRef: SessionRef) => boolean;
   readonly generateThreadTitleOverride?: (
     workspace: WorkspaceRef,
     options: import("./thread-title-generator.js").GenerateThreadTitleOptions,
@@ -203,6 +216,13 @@ interface ManagedSessionRecord {
   sessionFile: string | undefined;
   status: SessionStatus;
   updatedAt: string;
+  /** Epoch ms of the last activity on this record; the idle sweep measures from here. */
+  lastActivityAt: number;
+  /**
+   * The MCP add-on mode this record was created with. A reopen (idle sweep, archive, app restart)
+   * reuses it, so a child thread opened without MCP does not get its servers back on reopen.
+   */
+  mcp: SessionMcpMode;
   archivedAt: string | undefined;
   preview: string | undefined;
   config: SessionConfig | undefined;
@@ -282,6 +302,36 @@ interface PromptTemplateAdapter {
 
 const NEW_THREAD_PLACEHOLDER_TITLE = "New thread";
 
+/**
+ * How long a session nobody has touched keeps its runtime. Every open session holds a whole
+ * extension host, including the MCP servers pi starts for it, so a thread opened once and
+ * forgotten would otherwise keep that process cluster alive until the app quits.
+ */
+export const DEFAULT_IDLE_SESSION_TTL_MS = 15 * 60_000;
+
+/** How often the idle sweep looks for sessions past that TTL. */
+export const DEFAULT_IDLE_SWEEP_INTERVAL_MS = 60_000;
+
+/**
+ * How long the sweep waits, or `null` when it never runs. `null` is the one spelling of "never
+ * reclaim": `0` and negative TTLs mean the same thing and are normalized to it, so the sweep
+ * checks a single off switch. A caller that wants the default omits the value entirely.
+ */
+function normalizeIdleSessionTtlMs(ttlMs: number | null | undefined): number | null {
+  if (ttlMs === undefined) return DEFAULT_IDLE_SESSION_TTL_MS;
+  if (ttlMs === null || ttlMs <= 0) return null;
+  return ttlMs;
+}
+
+/**
+ * Often enough to reclaim a stale session soon after its TTL, rarely enough that a mostly idle
+ * app is not woken more than `DEFAULT_IDLE_SWEEP_INTERVAL_MS`. Never used while reclaiming is off.
+ */
+function idleSweepIntervalFor(ttlMs: number | null): number {
+  if (ttlMs === null) return DEFAULT_IDLE_SWEEP_INTERVAL_MS;
+  return Math.min(DEFAULT_IDLE_SWEEP_INTERVAL_MS, Math.max(1_000, Math.floor(ttlMs / 4)));
+}
+
 interface SkillAdapter {
   readonly name: string;
   readonly description: string;
@@ -311,6 +361,13 @@ export class SessionSupervisor {
   private readonly leaseIdentity: LeaseIdentity = currentLeaseIdentity();
   private readonly leaseTtlMs = DEFAULT_LEASE_TTL_MS;
   private readonly isPidAlive = defaultIsPidAlive;
+  /** TTL the sweep measures against, or `null` while reclaiming is off. `setIdleSessionTtlMs` changes it at runtime. */
+  private idleSessionTtlMs: number | null;
+  /** Derived from the current TTL, so it is recomputed whenever that changes. */
+  private idleSweepIntervalMs: number;
+  private readonly isSessionVisible: PiSdkDriverOptions["isSessionVisible"];
+  /** Closes sessions left untouched past the TTL; only set while one is open. */
+  private idleSweep: ReturnType<typeof setInterval> | undefined;
   private leaseHeartbeat: ReturnType<typeof setInterval> | undefined;
 
   constructor(options: PiSdkDriverOptions = {}) {
@@ -331,6 +388,9 @@ export class SessionSupervisor {
     this.onTurnCaptureBoundary = options.onTurnCaptureBoundary;
     this.turnCaptureTimeoutMs = options.turnCaptureTimeoutMs;
     this.agentDir = options.agentDir;
+    this.idleSessionTtlMs = normalizeIdleSessionTtlMs(options.idleSessionTtlMs);
+    this.idleSweepIntervalMs = idleSweepIntervalFor(this.idleSessionTtlMs);
+    this.isSessionVisible = options.isSessionVisible;
   }
 
   /**
@@ -345,7 +405,16 @@ export class SessionSupervisor {
     workspace: WorkspaceRef,
     sessionManager: SessionManager,
     extensionFlagValues: ExtensionFlagValues | undefined,
+    mcp: SessionMcpMode = "inherit",
   ): PiCreateAgentSessionOptions {
+    // `mcp: "off"` (child threads) leaves pi's MCP add-on out, so the session never reads
+    // mcp.json and spawns no MCP child process of its own. pi connects MCP per session, and a
+    // child thread has no use for the servers, so one set of processes each is pure overhead.
+    // codemode and tool-search stay: they spawn nothing.
+    const piAddons =
+      mcp === "off"
+        ? this.piAddons.filter((addon) => addon.name !== MCP_ADDON_EXTENSION_NAME)
+        : this.piAddons;
     const createOptions: PiCreateAgentSessionOptions = {
       cwd: workspace.path,
       sessionManager,
@@ -354,7 +423,7 @@ export class SessionSupervisor {
         : {}),
       resourceLoaderOptions: {
         extensionFactories: [
-          ...this.piAddons,
+          ...piAddons,
           ...this.builtinExtensions,
           {
             name: "pi-gui-plan-limits",
@@ -716,6 +785,7 @@ export class SessionSupervisor {
         workspace,
         SessionManager.create(workspace.path),
         options?.extensionFlagValues,
+        options?.mcp,
       ),
       ...(initialModel
         ? {
@@ -739,6 +809,7 @@ export class SessionSupervisor {
       workspace,
       runtime,
       options?.title ?? deriveWorkspaceTitle(workspace),
+      options?.mcp ?? "inherit",
     );
     session.sessionManager.appendSessionInfo(record.title);
     forcePersistPiSession(session.sessionManager);
@@ -750,6 +821,7 @@ export class SessionSupervisor {
     }
 
     this.records.set(sessionKey(record.ref), record);
+    this.syncIdleSweep();
     await this.bindSessionRuntimeOrDispose(record);
     this.reportLoadDiagnostics(record, runtime);
     await this.persistSnapshot(record);
@@ -884,6 +956,7 @@ export class SessionSupervisor {
     }
 
     this.records.set(sessionKey(record.ref), record);
+    this.syncIdleSweep();
     await this.bindSessionRuntimeOrDispose(record);
     this.reportLoadDiagnostics(record, runtime);
     await this.persistSnapshot(record);
@@ -950,6 +1023,8 @@ export class SessionSupervisor {
 
   async archiveSession(sessionRef: SessionRef): Promise<void> {
     await this.updateArchivedState(sessionRef, nowIso());
+    // Archiving puts a thread away, so its runtime (and the MCP children with it) goes too.
+    await this.closeSessionIfNotRunning(sessionRef);
   }
 
   async unarchiveSession(sessionRef: SessionRef): Promise<void> {
@@ -1539,6 +1614,7 @@ export class SessionSupervisor {
     }
 
     record.listeners.add(listener);
+    record.lastActivityAt = Date.now();
     void Promise.resolve(listener(sessionUpdatedEvent(record))).catch(() => {});
     this.replayExtensionUiState(record, listener);
     for (const request of record.undeliveredLoadNotices.splice(0)) {
@@ -1586,6 +1662,126 @@ export class SessionSupervisor {
       timestamp: nowIso(),
       reason: "manual",
     });
+  }
+
+  /**
+   * Change how long a session nobody touches keeps its runtime, or turn the sweep off entirely
+   * with `null` (or `0`). Takes effect at once, with no restart and no rebuilt driver: the pending
+   * timer is replaced, and switching reclaiming off leaves no timer at all.
+   */
+  setIdleSessionTtlMs(idleSessionTtlMs: number | null): void {
+    this.idleSessionTtlMs = normalizeIdleSessionTtlMs(idleSessionTtlMs);
+    this.idleSweepIntervalMs = idleSweepIntervalFor(this.idleSessionTtlMs);
+    if (this.idleSweep) {
+      // A different TTL means a different interval, so the running timer is never reused.
+      clearInterval(this.idleSweep);
+      this.idleSweep = undefined;
+    }
+    this.syncIdleSweep();
+    // The new TTL applies to what is already open, not only from the next tick on.
+    void this.sweepIdleSessions().catch((error: unknown) => {
+      console.warn("[pi-sdk-driver] idle session sweep failed:", error);
+    });
+  }
+
+  /**
+   * Close every open session, releasing each runtime and the extension hosts and MCP child
+   * processes it owns. The app calls this on quit: sessions that are never closed leave their
+   * children behind as orphans once Electron exits. Records are kept, so the same catalog can
+   * still reopen them.
+   */
+  async closeAllSessions(): Promise<void> {
+    for (const record of [...this.records.values()]) {
+      if (!record.session && !record.runtime) continue;
+      try {
+        await this.closeSession(record.ref);
+      } catch (error) {
+        // One session failing to close must not leave the rest (and their children) behind.
+        console.warn(`[pi-sdk-driver] failed to close ${sessionKey(record.ref)}:`, error);
+      }
+    }
+  }
+
+  /** Close a session unless a turn is running or about to. */
+  private async closeSessionIfNotRunning(sessionRef: SessionRef): Promise<void> {
+    const record = this.records.get(sessionKey(sessionRef));
+    if (!record || this.isRecordRunning(record)) {
+      return;
+    }
+    await this.closeSession(sessionRef);
+  }
+
+  /**
+   * Close sessions nobody has touched for `idleSessionTtlMs`. Each open session owns a complete
+   * runtime, so without this the process cluster keeps growing for as long as the app runs. Only
+   * free sessions are swept: anything running, queued or waiting on a dialog stays. A listener is
+   * not evidence of use — the desktop subscribes for the life of the app — so the host instead
+   * names the sessions a window actually shows through `isSessionVisible`.
+   */
+  private async sweepIdleSessions(): Promise<void> {
+    const now = Date.now();
+    for (const record of [...this.records.values()]) {
+      if (!this.isIdleForSweep(record, now)) continue;
+      try {
+        await this.closeSession(record.ref);
+      } catch (error) {
+        console.warn(
+          `[pi-sdk-driver] idle sweep failed to close ${sessionKey(record.ref)}:`,
+          error,
+        );
+      }
+    }
+  }
+
+  private isIdleForSweep(record: ManagedSessionRecord, now: number): boolean {
+    if (!record.session && !record.runtime) return false;
+    if (this.isRecordBusy(record)) return false;
+    if (this.isSessionVisible?.(record.ref)) return false;
+    // Reclaiming is off: nothing is ever idle enough to close.
+    if (this.idleSessionTtlMs === null) return false;
+    return now - record.lastActivityAt >= this.idleSessionTtlMs;
+  }
+
+  /** Work in flight that closing the session would interrupt. */
+  private isRecordBusy(record: ManagedSessionRecord): boolean {
+    return (
+      this.isRecordRunning(record) ||
+      record.promptStarting ||
+      record.abortOnRunStart ||
+      record.bindingExtensions ||
+      record.queuedStartScheduled ||
+      record.queuedStartRecheck ||
+      record.queuedMessages.length > 0 ||
+      record.startingQueuedMessage !== undefined ||
+      record.pendingHostUiRequests.size > 0 ||
+      record.undeliveredLoadNotices.length > 0 ||
+      record.reloadPending ||
+      record.reloadInFlight !== undefined ||
+      record.extensionCommandsRunning > 0
+    );
+  }
+
+  /** A turn is running, or has been asked to start. */
+  private isRecordRunning(record: ManagedSessionRecord): boolean {
+    return record.runningRunId !== undefined || record.status === "running";
+  }
+
+  /** Run the idle sweep only while reclaiming is on and some record still holds a runtime. */
+  private syncIdleSweep(): void {
+    const anyOpen = [...this.records.values()].some((record) => record.session || record.runtime);
+    const wanted = anyOpen && this.idleSessionTtlMs !== null;
+    if (wanted && !this.idleSweep) {
+      this.idleSweep = setInterval(() => {
+        void this.sweepIdleSessions().catch((error: unknown) => {
+          console.warn("[pi-sdk-driver] idle session sweep failed:", error);
+        });
+      }, this.idleSweepIntervalMs);
+      // Never keep the process alive just to sweep sessions.
+      this.idleSweep.unref?.();
+    } else if (!wanted && this.idleSweep) {
+      clearInterval(this.idleSweep);
+      this.idleSweep = undefined;
+    }
   }
 
   private async ensureRecord(sessionRef: SessionRef): Promise<ManagedSessionRecord> {
@@ -1643,6 +1839,7 @@ export class SessionSupervisor {
           workspace,
           SessionManager.open(sessionFile),
           this.extensionFlagValuesForSession?.(sessionRef),
+          existing?.mcp,
         ),
       );
     } catch (error) {
@@ -1651,8 +1848,12 @@ export class SessionSupervisor {
     }
     const session = runtime.session;
 
+    // A reopen keeps the MCP mode the record was created with (a swept child thread must not get
+    // its servers back); a brand new record only exists for a session pi-gui has never opened.
+    const inheritedMcp = existing?.mcp ?? "inherit";
     const record =
-      existing ?? this.createRecord(workspaceToRef(workspace), runtime, sessionEntry.title);
+      existing ??
+      this.createRecord(workspaceToRef(workspace), runtime, sessionEntry.title, inheritedMcp);
     record.runtime = runtime;
     record.session = session;
     record.sessionFile = sessionFile;
@@ -1664,9 +1865,11 @@ export class SessionSupervisor {
     record.config = deriveSessionConfig(session.sessionManager);
     record.closed = false;
     record.leasePath = leasePath;
+    record.lastActivityAt = Date.now();
 
     this.records.set(key, record);
     this.syncLeaseHeartbeat();
+    this.syncIdleSweep();
     await this.bindSessionRuntimeOrDispose(record);
     this.reportLoadDiagnostics(record, runtime);
     return record;
@@ -1676,6 +1879,7 @@ export class SessionSupervisor {
     workspace: WorkspaceRef,
     runtime: AgentSessionRuntime,
     title: string,
+    mcp: SessionMcpMode = "inherit",
   ): ManagedSessionRecord {
     const session = runtime.session;
     const ref = {
@@ -1692,6 +1896,8 @@ export class SessionSupervisor {
       sessionFile: session.sessionFile ?? session.sessionManager.getSessionFile(),
       status: "idle",
       updatedAt: nowIso(),
+      lastActivityAt: Date.now(),
+      mcp,
       archivedAt: undefined,
       preview: undefined,
       config: deriveSessionConfig(session.sessionManager),
@@ -1758,11 +1964,15 @@ export class SessionSupervisor {
     // Release the lease before disposing so another writer can take
     // over promptly. Runs on every teardown path (close/remove/sync/rebind).
     await this.releaseSessionLease(record);
-    if (runtime) {
-      await runtime.dispose();
-      return;
+    try {
+      if (runtime) {
+        await runtime.dispose();
+        return;
+      }
+      session?.dispose();
+    } finally {
+      this.syncIdleSweep();
     }
-    session?.dispose();
   }
 
   /**
@@ -2498,6 +2708,8 @@ export class SessionSupervisor {
     record: ManagedSessionRecord,
     options: { emitUpdate?: boolean } = {},
   ): Promise<void> {
+    // Whoever changed this session — the person or a tool — used it, so the idle clock restarts.
+    record.lastActivityAt = Date.now();
     const session = this.requireSession(record);
     const previousKey = sessionKey(record.ref);
     const nextRef = {
@@ -2587,6 +2799,9 @@ export class SessionSupervisor {
     event: AgentSessionEvent,
   ): SessionDriverEvent[] {
     const timestamp = nowIso();
+    // A turn, a tool call or a transcript entry is real activity and keeps the session out of the
+    // idle sweep. Broadcasts alone are not: `emit` deliberately does not touch this clock.
+    record.lastActivityAt = Date.now();
     // Calls a tool makes through ctx.executeTool() carry parentToolCallId. Pi saves them only on
     // the parent's result, so the timeline shows the parent call alone, live and after reload.
     if ("parentToolCallId" in event && event.parentToolCallId) {
@@ -2889,6 +3104,10 @@ export class SessionSupervisor {
   }
 
   private async emit(record: ManagedSessionRecord, event: SessionDriverEvent): Promise<void> {
+    // Only real activity refreshes the idle clock (`mapAgentEvent`, session mutations, `subscribe`,
+    // create/reopen). Bumping it here made every broadcast — status updates, lease heartbeats,
+    // subscription replays — look like use, so an idle session never reached its TTL and the sweep
+    // never reclaimed anything.
     for (const listener of [...record.listeners]) {
       try {
         await listener(event);

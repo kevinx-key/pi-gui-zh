@@ -2898,6 +2898,21 @@
   backdrop-filter: blur(6px);
 }
 
+/* The chat's question card: it waits inside its own conversation, above the composer, instead of
+ * covering the window. It is deliberately not a modal, so every other thread stays usable. */
+.extension-dialog-inline {
+  width: min(768px, calc(100% - 48px));
+  margin: 0 auto 10px;
+}
+
+.extension-dialog--inline {
+  width: 100%;
+  max-height: min(52vh, 420px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  box-shadow: var(--shadow-sm);
+}
+
 .extension-dialog {
   width: min(560px, 100%);
   display: grid;
@@ -2978,6 +2993,13 @@
 .extension-dialog__option:hover {
   border-color: var(--line-strong);
   background: var(--overlay-hover);
+}
+
+/* A question's options stay pressed until the user confirms them. */
+.extension-dialog__option--choice[aria-pressed="true"] {
+  border-color: var(--accent-tint-border);
+  background: var(--accent-tint-bg-strong);
+  color: var(--text-strong);
 }
 
 .extension-dialog__editor {

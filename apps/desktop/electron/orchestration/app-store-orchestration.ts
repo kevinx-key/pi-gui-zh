@@ -24,9 +24,16 @@ import type {
   SetChildSupervisionLoopInput,
   TimelineToolCall,
   TranscriptMessage,
+  TimelineTranscriptItem,
 } from "../../contracts/desktop-state";
 import { latestSessionActivityAt, previewFromTranscript } from "../application/app-store-utils";
 import type { RefreshStateOptions } from "../application/refresh-state-options";
+import {
+  isFinishedOrchestrationChild,
+  nextSupervisionRunAt,
+  supervisionIntervalMs,
+  toPersistedOrchestrationChildren,
+} from "./orchestration-history";
 import {
   createChildThreadAction,
   createChildThreadPromptFromToolOutput,
@@ -51,10 +58,10 @@ import type {
 
 const CHILD_TITLE_LIMIT = 56;
 const MAX_CHILD_TRANSCRIPT_MESSAGES = 40;
+/** Enough of the child's own timeline for the parent's sub-agent block, bounded like its transcript. */
+const MAX_CHILD_TIMELINE_ITEMS = 60;
 const MAX_READ_THREAD_MESSAGES = 60;
 const MAX_EVIDENCE_RECORDS_PER_CHILD = 80;
-const DEFAULT_SUPERVISION_INTERVAL_MS = 60_000;
-const MIN_SUPERVISION_INTERVAL_MS = 250;
 const CHILD_START_TIMEOUT_MS = 10_000;
 const CHILD_RUNNING_FAILURE_GRACE_MS = 1_000;
 const pendingCreateChildThreadToolCalls = new Set<string>();
@@ -229,6 +236,9 @@ async function createChildThreadRecord(
     const session = await store.driver.createSession(workspace, {
       ...createOptions,
       title: titleFromPrompt(prompt),
+      // A child thread needs no MCP: pi connects mcp.json's servers per session, so inheriting
+      // them would spawn a whole extra set of MCP processes for every child thread.
+      mcp: "off",
     });
     const childRef = session.ref;
     store.seedSession(session);
@@ -249,6 +259,7 @@ async function createChildThreadRecord(
       status,
       latestTranscript: session.preview || prompt,
       transcript: [],
+      timeline: [],
       evidence: [
         {
           id: evidenceId("created", input.sourceToolCallId ?? childRef.sessionId),
@@ -738,8 +749,19 @@ function reconcileDueSupervisionLoops(
   const nowMs = now.getTime();
   const nowIso = now.toISOString();
   const currentChildren = store.orchestrationState().orchestrationChildren;
-  const parentEvidenceByChild = parentEvidenceIndex(store, currentChildren);
+  // A finished child is off the schedule: re-projecting it would re-read its session transcript on
+  // every tick just to rebuild evidence nothing consumes. It comes back the moment its session is
+  // running again (a follow-up re-opens it), which is the only way a finished child revives.
+  const dueChildren = currentChildren.filter(
+    (child) => !isFinishedOrchestrationChild(child) || isChildSessionRunning(store, child),
+  );
+  const parentEvidenceByChild =
+    dueChildren.length > 0 ? parentEvidenceIndex(store, currentChildren) : new Map();
+  const dueIds = new Set(dueChildren.map((child) => child.id));
   const children = currentChildren.map((child) => {
+    if (!dueIds.has(child.id)) {
+      return child;
+    }
     const beforeKey = supervisionPublishKey(child);
     const projectedChild = projectOrchestrationChild(
       store,
@@ -763,14 +785,12 @@ function reconcileDueSupervisionLoops(
         ? projectedChild
         : { ...projectedChild, supervisionLoop: loop };
     }
-    const advancedChild = {
+    // Re-arming is bookkeeping: only a real change to what the parent has to see (status, gate,
+    // reason) is published, so a tick that finds the same child still working writes nothing.
+    return {
       ...projectedChild,
       supervisionLoop: advanceSupervisionLoop(loop, projectedChild.status, now),
     };
-    if (supervisionPublishKey(advancedChild) !== beforeKey) {
-      shouldPublish = true;
-    }
-    return advancedChild;
   });
 
   store.replaceOrchestrationChildren(children);
@@ -779,6 +799,14 @@ function reconcileDueSupervisionLoops(
     changed: shouldPublish,
     nextRunAt: nextSupervisionRunAt(children),
   };
+}
+
+/** A finished child whose session started running again is live and must be supervised again. */
+function isChildSessionRunning(store: OrchestrationOwnerHost, child: OrchestrationChildThread) {
+  if (!child.childSessionId) {
+    return false;
+  }
+  return store.sessionFromState(childSessionRef(child))?.status === "running";
 }
 
 async function hydrateOrchestrationChildren(store: OrchestrationOwnerHost): Promise<void> {
@@ -836,33 +864,10 @@ function hasOrchestrationParentSession(
   );
 }
 
-export function toPersistedOrchestrationChildren(
-  children: readonly OrchestrationChildThread[],
-): readonly OrchestrationChildThread[] | undefined {
-  if (children.length === 0) {
-    return undefined;
-  }
-  return children.map((child) => ({
-    ...child,
-    latestTranscript: child.childSessionId ? child.goal : child.latestTranscript,
-    transcript: child.childSessionId ? [] : child.transcript,
-    evidence: capEvidenceRecords(child.evidence),
-  }));
-}
-
-export function nextSupervisionRunAt(
-  children: readonly OrchestrationChildThread[],
-): string | undefined {
-  return children
-    .flatMap((child) =>
-      child.supervisionLoop?.status !== "stopped" &&
-      child.supervisionLoop?.nextRunAt &&
-      Number.isFinite(Date.parse(child.supervisionLoop.nextRunAt))
-        ? [child.supervisionLoop.nextRunAt]
-        : [],
-    )
-    .sort()[0];
-}
+// The persisted child shape and the wake schedule live with the archive (finished children keep
+// their card but are never scheduled again). Re-exported here because this module is the
+// orchestration owner the store talks to.
+export { nextSupervisionRunAt, toPersistedOrchestrationChildren };
 
 function childSessionRef(child: OrchestrationChildThread): SessionRef {
   return {
@@ -1059,6 +1064,7 @@ function projectOrchestrationChild(
   const session = store.sessionFromState(childRef);
   const rawTranscript = recentTranscriptItems(store.transcriptFor(childRef));
   const transcript = toChildTranscript(rawTranscript, MAX_CHILD_TRANSCRIPT_MESSAGES);
+  const timeline = rawTranscript.slice(-MAX_CHILD_TIMELINE_ITEMS);
   const latestTranscript = session?.preview || previewFromTranscript(rawTranscript) || child.goal;
   const updatedAt = latestSessionActivityAt(session?.updatedAt ?? child.updatedAt, rawTranscript);
   const status = session ? toOrchestrationStatus(session.status, childRef, store) : child.status;
@@ -1069,6 +1075,7 @@ function projectOrchestrationChild(
     status,
     latestTranscript,
     transcript,
+    timeline,
     evidence: mergeEvidenceRecords(child.evidence, [
       ...evidenceFromChildTranscript(child, rawTranscript),
       ...parentEvidence,
@@ -1216,14 +1223,6 @@ function updateChildSupervisionLoop(
       };
     }),
   );
-}
-
-function supervisionIntervalMs(): number {
-  const configured = Number(process.env.PI_APP_ORCHESTRATION_SUPERVISION_INTERVAL_MS);
-  if (!Number.isFinite(configured) || configured <= 0) {
-    return DEFAULT_SUPERVISION_INTERVAL_MS;
-  }
-  return Math.max(MIN_SUPERVISION_INTERVAL_MS, Math.floor(configured));
 }
 
 function nextIso(fromIso: string, intervalMs: number): string {
@@ -1983,7 +1982,11 @@ async function gitOutputLines(
   args: readonly string[],
 ): Promise<readonly string[]> {
   try {
-    const { stdout } = await execFileAsync("git", args, { cwd: workspacePath });
+    const { stdout } = await execFileAsync("git", args, {
+      cwd: workspacePath,
+      // Without this Windows flashes a console window for every child thread's git probe.
+      windowsHide: true,
+    });
     return stdout
       .split("\n")
       .map((line) => line.trim())
@@ -2081,7 +2084,7 @@ function toChildTranscript(
 
 function recentTranscriptItems(
   transcript: readonly TranscriptMessage[],
-): readonly TranscriptMessage[] {
+): readonly TimelineTranscriptItem[] {
   // Pins sit at the end of a transcript but are never child messages, so they take no slots.
   return transcript.filter((item) => item.kind !== "pin").slice(-MAX_CHILD_TRANSCRIPT_MESSAGES);
 }

@@ -146,6 +146,19 @@ export class PiSdkDriver implements SessionDriver {
     return this.supervisor.closeSession(sessionRef);
   }
 
+  /** Releases every open session; the app calls this on quit. See `SessionSupervisor`. */
+  closeAllSessions(): Promise<void> {
+    return this.supervisor.closeAllSessions();
+  }
+
+  /**
+   * Change how long an untouched session keeps its runtime — and the extension hosts and MCP
+   * child processes it owns. `null` (or `0`) turns reclaiming off. See `SessionSupervisor`.
+   */
+  setIdleSessionTtlMs(idleSessionTtlMs: number | null): void {
+    this.supervisor.setIdleSessionTtlMs(idleSessionTtlMs);
+  }
+
   listWorkspaces(): Promise<WorkspaceCatalogSnapshot> {
     return this.supervisor.listWorkspaces();
   }

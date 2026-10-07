@@ -1315,6 +1315,32 @@ export async function runOrchestrationRuntimeTool(
   }, input);
 }
 
+/**
+ * Runs the built-in `ask_user` tool directly. The call only settles once the window answers the
+ * dialog, so a test starts it, drives the dialog, then awaits the returned promise.
+ */
+export async function runAskUserTool(
+  harness: DesktopHarness,
+  input: OrchestrationRuntimeToolTestInput,
+): Promise<OrchestrationRuntimeToolTestResult> {
+  await harness.firstWindow();
+  return harness.electronApp.evaluate(async (_, payload) => {
+    const hooks = (
+      globalThis as {
+        __PI_APP_TEST_HOOKS?: {
+          runAskUserTool?: (
+            input: OrchestrationRuntimeToolTestInput,
+          ) => Promise<OrchestrationRuntimeToolTestResult>;
+        };
+      }
+    ).__PI_APP_TEST_HOOKS;
+    if (!hooks?.runAskUserTool) {
+      throw new Error("Ask-user runtime-tool hook is unavailable");
+    }
+    return hooks.runAskUserTool(payload);
+  }, input);
+}
+
 export async function runScheduledTaskRuntimeTool(
   harness: DesktopHarness,
   input: OrchestrationRuntimeToolTestInput,

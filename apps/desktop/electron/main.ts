@@ -46,6 +46,12 @@ import {
   createScheduledTaskRuntimeTools,
   type ScheduledTaskRuntimeBridge,
 } from "./scheduled-tasks/scheduled-task-runtime";
+import {
+  askUserToolName,
+  createAskUserRuntimeExtension,
+  createAskUserTool,
+  type AskUserRuntimeBridge,
+} from "./user-questions/ask-user-runtime";
 import { getChangedFiles, getFileDiff, stageFile } from "./platform/files/app-store-diff";
 import { listWorkspaceFiles, readWorkspaceFile } from "./platform/files/app-store-files";
 import { resolveExistingWorkspacePath } from "./platform/files/workspace-paths";
@@ -184,6 +190,12 @@ const SUPPORTED_IMAGE_MIME_TYPES = new Set<string>(
 );
 const NEW_WINDOW_MENU_ITEM_ID = "file.new-window";
 
+function createStoreBackedAskUserRuntimeBridge(): AskUserRuntimeBridge {
+  return {
+    askUser: (sessionRef, input) => store.askUserQuestion(sessionRef, input),
+  };
+}
+
 function createStoreBackedOrchestrationRuntimeBridge(): OrchestrationRuntimeBridge {
   return {
     createChildThread: async (ctx, input) => {
@@ -213,6 +225,20 @@ function sessionRefFromExtensionContext(ctx: ExtensionContext): SessionRef {
     throw new Error(`Unable to resolve orchestration session for ${cwd}:${sessionId}`);
   }
   return sessionRef;
+}
+
+async function runAskUserToolForTest(
+  bridge: AskUserRuntimeBridge,
+  input: OrchestrationRuntimeToolTestInput,
+): Promise<AgentToolResult<unknown>> {
+  await store.initialize();
+  return createAskUserTool(bridge, sessionRefFromExtensionContext).execute(
+    input.toolCallId ?? `test-${askUserToolName}`,
+    input.params,
+    undefined,
+    undefined,
+    createTestExtensionContext(input.sessionRef),
+  );
 }
 
 async function runOrchestrationRuntimeToolForTest(
@@ -973,6 +999,7 @@ app
         }
       | undefined;
     const orchestrationRuntimeBridge = createStoreBackedOrchestrationRuntimeBridge();
+    const askUserRuntimeBridge = createStoreBackedAskUserRuntimeBridge();
     const scheduledTaskRuntimeBridge = createStoreBackedScheduledTaskRuntimeBridge();
     const checkpoints = new TurnCheckpointStore(configuredUserDataDir);
     const extensionViews: DesktopExtensionViewOwner = new DesktopExtensionViewOwner({
@@ -1017,6 +1044,8 @@ app
           extensionViews.invalidateRuntime(target, generation),
       },
       openUrl: openMcpSignInUrl,
+      // The driver reclaims idle sessions; never the thread a window is showing.
+      isSessionVisible: (sessionRef) => windowOwner?.isSessionVisible(sessionRef) ?? false,
       builtinExtensions: [
         {
           name: "pi-gui-thread-orchestration",
@@ -1035,6 +1064,15 @@ app
               return undefined;
             }
           }),
+        },
+        {
+          name: "pi-gui-ask-user",
+          displayName: "Ask the user",
+          description: "Lets pi ask a question with options and wait for the answer the user picks",
+          factory: createAskUserRuntimeExtension(
+            askUserRuntimeBridge,
+            sessionRefFromExtensionContext,
+          ),
         },
       ],
     };
@@ -1087,6 +1125,8 @@ app
             promptForText(mainWindow, message, placeholder ?? "", allowEmpty ?? false),
           runOrchestrationRuntimeTool: (input: OrchestrationRuntimeToolTestInput) =>
             runOrchestrationRuntimeToolForTest(orchestrationRuntimeBridge, input),
+          runAskUserTool: (input: OrchestrationRuntimeToolTestInput) =>
+            runAskUserToolForTest(askUserRuntimeBridge, input),
           runScheduledTaskRuntimeTool: (input: ScheduledTaskRuntimeToolTestInput) =>
             runScheduledTaskRuntimeToolForTest(scheduledTaskRuntimeBridge, input),
           fireDueScheduledTasks: (nowIso?: string) =>
@@ -1301,6 +1341,13 @@ app.on("before-quit", (event) => {
   // Renderers send their debounced drafts first so the store flush below includes them.
   const flush = composerDraftFlusher
     .flush(windowOwner.allWindows())
+    .then(() =>
+      // Closing sessions releases the extension hosts and MCP children they own; the app must
+      // not exit with them still running. A failure here must not skip the flush below.
+      quittingStore.closeAllSessions().catch((error: unknown) => {
+        console.error("pi-gui: closing sessions failed during quit:", error);
+      }),
+    )
     .then(() => Promise.all([quittingStore.flushPersistence(), extensionViewOwner?.dispose()]))
     .catch((error: unknown) => {
       console.error("pi-gui: persistence flush failed during quit:", error);

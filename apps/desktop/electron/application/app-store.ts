@@ -54,9 +54,11 @@ import {
   type QueuedComposerMessage,
   type RemoveWorktreeInput,
   type SendChildThreadFollowUpInput,
+  type SessionIdleReclaimMinutes,
   type SetChildSupervisionLoopInput,
   type SelectedTranscriptRecord,
   type SessionExtensionNoticeRecord,
+  type SessionExtensionDialogRecord,
   type StartThreadInput,
   type StartupDiagnostic,
   type ThemeMode,
@@ -147,6 +149,15 @@ import {
   createOrchestrationOwner,
   type OrchestrationOwner,
 } from "../orchestration/app-store-orchestration";
+// A restart keeps finished children as cards only: their history is archived, not held in memory.
+import { trimFinishedOrchestrationChildrenOnLoad } from "../orchestration/orchestration-history";
+import {
+  createUserQuestionOwner,
+  type UserQuestionAnswer,
+  type UserQuestionDialogRequest,
+  type UserQuestionInput,
+  type UserQuestionOwner,
+} from "../user-questions/user-question-owner";
 import {
   createScheduledTaskOwner,
   isScheduledTaskInFlight,
@@ -184,6 +195,7 @@ export interface DesktopAppStoreOptions {
     PiSdkDriverConfig,
     | "builtinExtensions"
     | "desktopExtensions"
+    | "isSessionVisible"
     | "onTurnCaptureBoundary"
     | "openUrl"
     | "turnCaptureTimeoutMs"
@@ -192,6 +204,49 @@ export interface DesktopAppStoreOptions {
     workspace: WorkspaceRef,
     options: GenerateThreadTitleOptions,
   ) => Promise<string | null | undefined>;
+}
+
+/**
+ * The driver's idle TTL for a saved setting. `0` minutes means "never reclaim", which the driver
+ * spells `null`; anything else is minutes in milliseconds.
+ */
+function idleSessionTtlMsFor(sessionIdleReclaimMinutes: SessionIdleReclaimMinutes): number | null {
+  return sessionIdleReclaimMinutes > 0 ? sessionIdleReclaimMinutes * 60_000 : null;
+}
+
+/**
+ * Debounce for `schedulePersistUiState()`. `ui-state.json` is >1 MB and is rewritten
+ * wholesale (stringify + atomic replace), so the old 250 ms window meant a busy renderer
+ * (streaming events, `lastViewedAt` bumps) kept the main process rewriting the file every
+ * few seconds. 3 s collapses those bursts (at least 12x fewer writes) while a change still
+ * reaches disk quickly after the user stops interacting. Only *deferred* writes are
+ * debounced — `persistUiState()` itself stays immediate for quit/flush/settings paths.
+ */
+const UI_STATE_PERSIST_DEBOUNCE_MS = 3_000;
+/**
+ * Ceiling on how long a pending write may be deferred. A trailing debounce alone can be starved:
+ * a streaming thread emits an event every few hundred ms, each one re-arming the timer, so without
+ * this the state could stay unwritten for the length of a run (a hard kill would then lose it).
+ * With it, a busy renderer still gets its UI state on disk at least every 10 s.
+ */
+const UI_STATE_PERSIST_MAX_DEFERRAL_MS = 10_000;
+/**
+ * `lastViewedAt` resolution. The value feeds sidebar recency ordering and the unread dot,
+ * both of which render relative times, so second-level precision buys nothing; recording at
+ * most once per 30 s stops the "thread is streaming" case from dirtying the persisted state
+ * every ~0.6 s (which is what forced the constant rewrites). Thread switches and explicit
+ * "mark read" bypass the throttle, so the common paths stay exact.
+ */
+const LAST_VIEWED_AT_THROTTLE_MS = 30_000;
+
+/**
+ * Byte-for-byte mirror of the serialization done by `writePersistedUiState()` so an unchanged
+ * payload can be detected before it is written. If that writer's format ever changes this
+ * simply stops matching every time and persisting falls back to "write on every call" — the
+ * guard can only ever skip a write that would have produced identical bytes.
+ */
+function serializeUiStateForPersistGuard(payload: PersistedUiState): string {
+  return `${JSON.stringify({ ...payload, version: 19 } satisfies PersistedUiState, null, 2)}\n`;
 }
 
 export class DesktopAppStore {
@@ -267,6 +322,17 @@ export class DesktopAppStore {
   private composerDraftSyncTarget: SessionRef | undefined;
   private composerDraftProjectionNonce = 0;
   private persistUiStateTimer: NodeJS.Timeout | undefined;
+  /**
+   * When the current pending write window opened (the first dirty call since the last write).
+   * The window may be re-armed many times by a trailing debounce; this bounds the total.
+   */
+  private persistUiStateScheduledAtMs: number | undefined;
+  /**
+   * Serialized UI state known to be on disk: the file bytes read at startup, or the payload of
+   * our last successful write. `persistUiState()` returns early when the freshly serialized
+   * payload matches this, so an unchanged state never re-encodes 1 MB to disk.
+   */
+  private lastPersistedUiStateSerialized: string | undefined;
   private persistenceReadiness: "pending" | "ready" | "blocked" = "pending";
   private orchestrationSupervisionTimer: NodeJS.Timeout | undefined;
   private scheduledOrchestrationSupervisionRunAt: string | undefined;
@@ -280,6 +346,7 @@ export class DesktopAppStore {
   private readonly conversationOwner: ConversationOwner;
   private readonly workspaceOwner: WorkspaceOwner;
   private readonly orchestrationOwner: OrchestrationOwner;
+  private readonly userQuestionOwner: UserQuestionOwner;
   private readonly scheduledTaskOwner: ScheduledTaskOwner;
   /** App-wide: built-in pi-gui extensions the user switched off in Settings. */
   private readonly disabledBuiltinExtensions = new Set<string>();
@@ -529,6 +596,13 @@ export class DesktopAppStore {
         ),
     });
 
+    this.userQuestionOwner = createUserQuestionOwner({
+      showDialog: (sessionRef, dialog) => this.showQuestionDialog(sessionRef, dialog),
+      clearDialog: (sessionRef, requestId) => {
+        this.removePendingExtensionDialog(sessionRef, requestId);
+      },
+    });
+
     this.scheduledTaskOwner = createScheduledTaskOwner({
       driver: this.driver,
       initialize: () => this.initialize(),
@@ -746,6 +820,15 @@ export class DesktopAppStore {
 
     await this.persistUiState();
     await this.persistScheduledTasks();
+  }
+
+  /**
+   * Releases every open session runtime, and with it the extension hosts and MCP child
+   * processes pi started for all of them. The app calls this on quit, before the persistence
+   * flush: a session left open would otherwise outlive Electron as an orphan process tree.
+   */
+  async closeAllSessions(): Promise<void> {
+    await this.driver.closeAllSessions();
   }
 
   private scheduleOrchestrationSupervision(): void {
@@ -982,7 +1065,7 @@ export class DesktopAppStore {
     if (!this.sessionFromState(sessionRef)) {
       return this.withError(`Unknown session: ${target.workspaceId}:${target.sessionId}`);
     }
-    if (!this.markSessionViewed(sessionRef)) {
+    if (!this.markSessionViewed(sessionRef, undefined, { force: true })) {
       return structuredClone(this.state);
     }
     this.state = {
@@ -1228,6 +1311,15 @@ export class DesktopAppStore {
     return this.orchestrationOwner.createChildThreadToolResult(parentRef, input);
   }
 
+  /** The `ask_user` tool: publish the question, then wait for the window's answer. */
+  async askUserQuestion(
+    sessionRef: SessionRef,
+    input: UserQuestionInput,
+  ): Promise<UserQuestionAnswer> {
+    await this.initialize();
+    return this.userQuestionOwner.ask(sessionRef, input);
+  }
+
   listThreadsToolResult(parentRef: SessionRef) {
     return this.orchestrationOwner.listThreadsToolResult(parentRef);
   }
@@ -1399,6 +1491,25 @@ export class DesktopAppStore {
       lastError: undefined,
       revision: this.state.revision + 1,
     };
+    await this.persistUiState();
+    return this.emit();
+  }
+
+  async setSessionIdleReclaimMinutes(
+    sessionIdleReclaimMinutes: SessionIdleReclaimMinutes,
+  ): Promise<DesktopAppState> {
+    await this.initialize();
+    if (this.state.sessionIdleReclaimMinutes === sessionIdleReclaimMinutes) {
+      return structuredClone(this.state);
+    }
+    this.state = {
+      ...this.state,
+      sessionIdleReclaimMinutes,
+      lastError: undefined,
+      revision: this.state.revision + 1,
+    };
+    // Pushed to the live driver, so the new TTL applies without a restart.
+    this.driver.setIdleSessionTtlMs(idleSessionTtlMsFor(sessionIdleReclaimMinutes));
     await this.persistUiState();
     return this.emit();
   }
@@ -2047,6 +2158,9 @@ export class DesktopAppStore {
     }
     try {
       this.restorePersistedUiState(persisted);
+      // The reclaim TTL belongs to the driver, so the restored setting is pushed to it here and
+      // again on every change. Nothing else about the sweep needs a restart.
+      this.driver.setIdleSessionTtlMs(idleSessionTtlMsFor(this.state.sessionIdleReclaimMinutes));
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error("[app-store] persisted UI state restoration failed; startup stopped", error);
@@ -2114,6 +2228,9 @@ export class DesktopAppStore {
       this.emit();
       return;
     }
+    // Seed the unchanged-payload guard with the bytes we just read, so startup's first no-op
+    // settle does not rewrite an identical >1 MB file.
+    this.lastPersistedUiStateSerialized = await this.readUiStateText();
     this.persistenceReadiness = "ready";
 
     try {
@@ -2222,6 +2339,8 @@ export class DesktopAppStore {
       },
       integratedTerminalShell:
         persisted.integratedTerminalShell ?? this.state.integratedTerminalShell,
+      sessionIdleReclaimMinutes:
+        persisted.sessionIdleReclaimMinutes ?? this.state.sessionIdleReclaimMinutes,
       lastViewedAtBySession: persisted.lastViewedAtBySession ?? {},
       lastInteractedAtBySession: persisted.lastInteractedAtBySession ?? {},
       pinnedAtBySession: persisted.pinnedAtBySession ?? {},
@@ -2233,7 +2352,9 @@ export class DesktopAppStore {
       threadGrouping: persisted.threadGrouping ?? "time",
       collapsedWorkspaceIds: persisted.collapsedWorkspaceIds ?? [],
       enableTransparency: persisted.enableTransparency ?? this.state.enableTransparency,
-      orchestrationChildren: persisted.orchestrationChildren ?? [],
+      orchestrationChildren: trimFinishedOrchestrationChildrenOnLoad(
+        persisted.orchestrationChildren ?? [],
+      ),
     };
 
     this.sessionState.lastViewedAtBySession.clear();
@@ -2990,6 +3111,8 @@ export class DesktopAppStore {
     if (!options.force && this.shouldKeepSessionDialogs(sessionRef)) {
       return;
     }
+    // A question waits on this session's window, so it settles whenever that window's dialog goes.
+    this.userQuestionOwner.cancelForSession(sessionRef);
     const key = sessionKey(sessionRef);
     const uiState = this.sessionState.extensionUiBySession.get(key);
     if (!uiState || uiState.pendingDialogs.length === 0) {
@@ -3045,8 +3168,14 @@ export class DesktopAppStore {
     sessionRef: SessionRef,
     response: HostUiResponse,
   ): Promise<DesktopAppState> {
+    // pi-gui's own question owns its requestIds, so it answers before the driver sees the response.
+    const answeredOwnQuestion = this.userQuestionOwner.answer(response);
     this.removePendingExtensionDialog(sessionRef, response.requestId);
     this.clearExtensionDialogTimeout(sessionRef, response.requestId);
+
+    if (answeredOwnQuestion) {
+      return this.refreshState({ clearLastError: true });
+    }
 
     return this.withErrorHandling(async () => {
       await this.driver.respondToHostUiRequest(sessionRef, response);
@@ -3249,6 +3378,35 @@ export class DesktopAppStore {
     return created;
   }
 
+  /**
+   * One dialog slot per request, whoever asked for it: an extension's dialog and pi-gui's own
+   * question go through the same window, the same response channel and the same timeout.
+   */
+  private addPendingExtensionDialog(
+    sessionRef: SessionRef,
+    dialog: SessionExtensionDialogRecord,
+  ): void {
+    const uiState = this.getOrCreateExtensionUiState(sessionRef);
+    this.clearExtensionDialogTimeout(sessionRef, dialog.requestId);
+    uiState.pendingDialogs = [
+      ...uiState.pendingDialogs.filter((entry) => entry.requestId !== dialog.requestId),
+      dialog,
+    ];
+    this.scheduleExtensionDialogTimeout(sessionRef, dialog);
+  }
+
+  private showQuestionDialog(sessionRef: SessionRef, dialog: UserQuestionDialogRequest): void {
+    this.addPendingExtensionDialog(sessionRef, dialog);
+    this.state = this.syncDerivedSessionState(
+      {
+        ...this.state,
+        revision: this.state.revision + 1,
+      },
+      sessionRef,
+    );
+    this.emit();
+  }
+
   private applyHostUiRequest(event: Extract<SessionDriverEvent, { type: "hostUiRequest" }>): void {
     const key = sessionKey(event.sessionRef);
     if (event.request.kind === "reset") {
@@ -3281,13 +3439,7 @@ export class DesktopAppStore {
         break;
       default:
         if (isExtensionUiDialogRequest(event.request)) {
-          const dialog = event.request;
-          this.clearExtensionDialogTimeout(event.sessionRef, dialog.requestId);
-          uiState.pendingDialogs = [
-            ...uiState.pendingDialogs.filter((entry) => entry.requestId !== dialog.requestId),
-            dialog,
-          ];
-          this.scheduleExtensionDialogTimeout(event.sessionRef, dialog);
+          this.addPendingExtensionDialog(event.sessionRef, event.request);
         }
         break;
     }
@@ -3528,7 +3680,14 @@ export class DesktopAppStore {
       if (event.type === "toolFinished") {
         await this.orchestrationOwner.handleOrchestrationThreadToolResult(event);
       }
-      this.markSessionViewedIfActivelyViewed(event.sessionRef);
+      this.markSessionViewedIfActivelyViewed(event.sessionRef, {
+        // Terminal events flush below anyway; recording the view exactly here keeps a finished run
+        // in the thread being watched from showing an unread dot for the rest of the throttle window.
+        force:
+          event.type === "runCompleted" ||
+          event.type === "runFailed" ||
+          event.type === "sessionClosed",
+      });
       this.state = this.syncDerivedSessionState(this.state, event.sessionRef);
       if (
         this.orchestrationOwner.hasOrchestrationChildSession(event.sessionRef) ||
@@ -3970,11 +4129,21 @@ export class DesktopAppStore {
     return readPersistedUiState(this.uiStateFilePath);
   }
 
+  /** Raw `ui-state.json` text, used only to seed the persist guard; unreadable means "write". */
+  private async readUiStateText(): Promise<string | undefined> {
+    try {
+      return await readFile(this.uiStateFilePath, "utf8");
+    } catch {
+      return undefined;
+    }
+  }
+
   async persistUiState(): Promise<void> {
     if (this.persistUiStateTimer) {
       clearTimeout(this.persistUiStateTimer);
       this.persistUiStateTimer = undefined;
     }
+    this.persistUiStateScheduledAtMs = undefined;
     if (this.persistenceReadiness !== "ready") {
       return;
     }
@@ -3996,6 +4165,7 @@ export class DesktopAppStore {
           ? [...this.disabledBuiltinExtensions].sort()
           : undefined,
       integratedTerminalShell: this.state.integratedTerminalShell || undefined,
+      sessionIdleReclaimMinutes: this.state.sessionIdleReclaimMinutes,
       lastViewedAtBySession: mapToRecord(this.sessionState.lastViewedAtBySession),
       lastInteractedAtBySession: mapToRecord(this.sessionState.lastInteractedAtBySession),
       pinnedAtBySession: mapToRecord(this.sessionState.pinnedAtBySession),
@@ -4020,7 +4190,23 @@ export class DesktopAppStore {
       ),
     };
 
-    await writePersistedUiState(this.uiStateFilePath, payload);
+    const serialized = serializeUiStateForPersistGuard(payload);
+    if (serialized === this.lastPersistedUiStateSerialized) {
+      // Nothing persisted has changed: skip the atomic write entirely (the renderer only moved
+      // `revision`, or an event arrived that this store does not persist).
+      return;
+    }
+
+    // Claim the payload before awaiting: writes are queued in order, so a later call that sees
+    // a different payload still writes, while a repeat of this one is correctly skipped.
+    this.lastPersistedUiStateSerialized = serialized;
+    try {
+      await writePersistedUiState(this.uiStateFilePath, payload);
+    } catch (error) {
+      // The write failed, so nothing is known to be on disk: drop the claim to stay fail-open.
+      this.lastPersistedUiStateSerialized = undefined;
+      throw error;
+    }
   }
 
   async persistComposerAttachments(
@@ -4035,20 +4221,44 @@ export class DesktopAppStore {
     if (this.persistenceReadiness !== "ready") {
       return;
     }
-    if (this.persistUiStateTimer) {
-      clearTimeout(this.persistUiStateTimer);
+    const nowMs = Date.now();
+    const windowOpenedAtMs = this.persistUiStateScheduledAtMs;
+    if (
+      windowOpenedAtMs !== undefined &&
+      nowMs - windowOpenedAtMs >= UI_STATE_PERSIST_MAX_DEFERRAL_MS
+    ) {
+      // The window has been open long enough: a continuously busy renderer (a streaming thread
+      // emits events faster than the debounce) must not push the write out indefinitely.
+      if (this.persistUiStateTimer) {
+        clearTimeout(this.persistUiStateTimer);
+      }
+      this.runScheduledPersistUiState();
+      return;
     }
 
+    // Trailing debounce: a burst of changes (typing, a run's event stream) writes once, after the
+    // burst, instead of re-encoding the file on every event.
+    if (this.persistUiStateTimer) {
+      clearTimeout(this.persistUiStateTimer);
+    } else {
+      this.persistUiStateScheduledAtMs = nowMs;
+    }
     this.persistUiStateTimer = setTimeout(() => {
-      this.persistUiStateTimer = undefined;
-      void this.persistUiState().catch((error: unknown) => {
-        console.error("[app-store] persistUiState failed", error);
-      });
-    }, 250);
+      this.runScheduledPersistUiState();
+    }, UI_STATE_PERSIST_DEBOUNCE_MS);
+  }
+
+  private runScheduledPersistUiState(): void {
+    this.persistUiStateTimer = undefined;
+    this.persistUiStateScheduledAtMs = undefined;
+    void this.persistUiState().catch((error: unknown) => {
+      console.error("[app-store] persistUiState failed", error);
+    });
   }
 
   private blockPersistence(): void {
     this.persistenceReadiness = "blocked";
+    this.persistUiStateScheduledAtMs = undefined;
     if (this.persistUiStateTimer) {
       clearTimeout(this.persistUiStateTimer);
       this.persistUiStateTimer = undefined;
@@ -4234,7 +4444,7 @@ export class DesktopAppStore {
       lastError: undefined,
       revision: this.state.revision + 1,
     };
-    this.markSessionViewed(sessionRef);
+    this.markSessionViewed(sessionRef, undefined, { force: true });
     this.schedulePersistUiState();
     const snapshot = this.emit();
     if (this.sessionState.loadedTranscriptKeys.has(sessionKey(sessionRef))) {
@@ -4274,7 +4484,7 @@ export class DesktopAppStore {
       runtimeByWorkspace,
     );
     if (options.markViewed ?? true) {
-      this.markSessionViewed(sessionRef);
+      this.markSessionViewed(sessionRef, undefined, { force: true });
     }
     this.schedulePersistUiState();
     this.emit();
@@ -4347,23 +4557,41 @@ export class DesktopAppStore {
     return this.markSessionViewed(sessionRef);
   }
 
-  private markSessionViewedIfActivelyViewed(sessionRef: SessionRef): boolean {
+  private markSessionViewedIfActivelyViewed(
+    sessionRef: SessionRef,
+    options: { readonly force?: boolean } = {},
+  ): boolean {
     const active = isSessionActivelyViewed(this.state, sessionRef, this.getWindow());
     if (!active) {
       return false;
     }
 
-    return this.markSessionViewed(sessionRef);
+    return this.markSessionViewed(sessionRef, undefined, options);
   }
 
   private markSessionViewed(
     sessionRef: SessionRef,
     fallbackViewedAt = new Date().toISOString(),
+    options: { readonly force?: boolean } = {},
   ): boolean {
     const key = sessionKey(sessionRef);
     const viewedAt = this.resolveViewedAt(sessionRef, fallbackViewedAt);
     const current = this.sessionState.lastViewedAtBySession.get(key);
     if (current && current >= viewedAt) {
+      return false;
+    }
+    // Throttled: a streaming thread re-marks itself as viewed on every event (~0.6 s), and each
+    // bump changed the persisted payload, so the whole 1.2 MB `ui-state.json` was rewritten a
+    // few seconds apart. Within the window we leave `lastViewedAtBySession` untouched — the
+    // recorded time keeps its meaning ("recently viewed"), just at 30 s instead of 1 s
+    // resolution — and return `false` so callers neither emit nor mark the state dirty.
+    // Thread switches and "mark read" pass `force`, so those stay exact. An unparsable stored
+    // value fails open (records).
+    if (
+      options.force !== true &&
+      current !== undefined &&
+      Date.now() - Date.parse(current) < LAST_VIEWED_AT_THROTTLE_MS
+    ) {
       return false;
     }
 

@@ -1565,6 +1565,8 @@ const ThreadSessionRow = forwardRef<HTMLDivElement, ThreadSessionRowProps>(
     const indicatorVariant = sessionIndicatorVariant(thread);
     const pinned = Boolean(thread.session.pinnedAt);
     const shortcut = useContext(ThreadShortcutContext)?.get(sessionThreadKey(thread));
+    // A thread waiting on a question says so, so the user knows which one is blocked on them.
+    const waitingOnAnswer = thread.pendingQuestion === true;
     const actionLabel = (verb: string) =>
       showContext
         ? t("{action} {name} in {context}", {
@@ -1635,6 +1637,21 @@ const ThreadSessionRow = forwardRef<HTMLDivElement, ThreadSessionRowProps>(
             <span className="session-row__body">
               <span className="session-row__title-line">
                 <span className="session-row__title">{thread.session.title}</span>
+                {thread.childThread ? (
+                  // A child session is only ever listed while the window is on it.
+                  <span className="session-row__badge" data-testid="session-row-child-badge">
+                    {t("Child thread")}
+                  </span>
+                ) : null}
+                {waitingOnAnswer ? (
+                  <span
+                    className="session-row__badge session-row__badge--waiting"
+                    data-testid="session-row-question-badge"
+                    title={t("Waiting")}
+                  >
+                    {t("Waiting")}
+                  </span>
+                ) : null}
               </span>
               {showContext ? (
                 <span className="session-row__context">{thread.contextLabel}</span>

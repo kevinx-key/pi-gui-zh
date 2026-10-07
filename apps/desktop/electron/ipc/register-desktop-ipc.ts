@@ -53,6 +53,7 @@ import {
   expectRemoveWorktreeInput,
   expectSendChildThreadFollowUpInput,
   expectSaveTaskWorkbenchTemplateInput,
+  expectSessionIdleReclaimMinutes,
   expectSessionTarget,
   expectRecord,
   expectSetChildSupervisionLoopInput,
@@ -167,6 +168,7 @@ type SettingsOwner = Pick<
   | "setCodemodeAlwaysOn"
   | "setNotificationPreferences"
   | "setIntegratedTerminalShell"
+  | "setSessionIdleReclaimMinutes"
   | "setEnableTransparency"
   | "getSkillFilePath"
   | "getExtensionFilePath"
@@ -651,6 +653,11 @@ export function registerDesktopIpc({
   ipcMain.handle(desktopIpc.setIntegratedTerminalShell, (event, rawShellPath: unknown) =>
     run(event, () =>
       owners.settings.setIntegratedTerminalShell(expectString(rawShellPath, "shellPath")),
+    ),
+  );
+  ipcMain.handle(desktopIpc.setSessionIdleReclaimMinutes, (event, rawMinutes: unknown) =>
+    run(event, () =>
+      owners.settings.setSessionIdleReclaimMinutes(expectSessionIdleReclaimMinutes(rawMinutes)),
     ),
   );
   ipcMain.handle(desktopIpc.setEnableTransparency, async (event, rawEnabled: unknown) => {

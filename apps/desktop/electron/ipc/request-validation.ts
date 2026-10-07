@@ -7,6 +7,7 @@ import type { ExtensionActionRequest } from "../../contracts/extension-actions";
 import type { NavigateSessionTreeOptions } from "@pi-gui/session-driver/types";
 import type { RuntimeSettingsSnapshot } from "@pi-gui/session-driver/runtime-types";
 import {
+  isSessionIdleReclaimMinutes,
   isThemeMode,
   isThemePresetId,
   type AppView,
@@ -18,6 +19,7 @@ import {
   type NotificationPreferences,
   type RemoveWorktreeInput,
   type SendChildThreadFollowUpInput,
+  type SessionIdleReclaimMinutes,
   type SetChildSupervisionLoopInput,
   type StartThreadInput,
   type ThemeMode,
@@ -165,6 +167,16 @@ export function expectThemeMode(value: unknown, name = "mode"): ThemeMode {
 export function expectThemePresetId(value: unknown, name = "presetId"): ThemePresetId {
   if (!isThemePresetId(value)) {
     throw new TypeError(`${name} must be a supported theme preset`);
+  }
+  return value;
+}
+
+export function expectSessionIdleReclaimMinutes(
+  value: unknown,
+  name = "sessionIdleReclaimMinutes",
+): SessionIdleReclaimMinutes {
+  if (!isSessionIdleReclaimMinutes(value)) {
+    throw new TypeError(`${name} must be one of 0, 5, 15, 30 or 60`);
   }
   return value;
 }
@@ -403,16 +415,23 @@ export function expectCustomProviderProbeInput(value: unknown): CustomProviderPr
 export function expectHostUiResponse(value: unknown): HostUiResponse {
   const record = expectRecord(value, "response");
   const requestId = expectNonEmptyString(record.requestId, "response.requestId");
+  const hasValues = Array.isArray(record.values);
   const variants = [
     typeof record.value === "string",
+    hasValues,
     typeof record.confirmed === "boolean",
     record.cancelled === true,
   ].filter(Boolean).length;
   if (variants !== 1) {
-    throw new TypeError("response must contain exactly one of value, confirmed, or cancelled");
+    throw new TypeError(
+      "response must contain exactly one of value, values, confirmed, or cancelled",
+    );
   }
   if (typeof record.value === "string") {
     return { requestId, value: record.value };
+  }
+  if (hasValues) {
+    return { requestId, values: expectStringArray(record.values, "response.values") };
   }
   if (typeof record.confirmed === "boolean") {
     return { requestId, confirmed: record.confirmed };

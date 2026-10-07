@@ -7,15 +7,22 @@ import type {
   OrchestrationChildThread,
   OrchestrationChildTranscriptMessage,
   OrchestrationSupervisionLoop,
+  SessionIdleReclaimMinutes,
   ThemeMode,
   ThemePresetId,
   ThreadGrouping,
 } from "../../contracts/desktop-state";
-import { isThemeMode, isThemePresetId, isThreadGrouping } from "../../contracts/desktop-state";
+import {
+  isSessionIdleReclaimMinutes,
+  isThemeMode,
+  isThemePresetId,
+  isThreadGrouping,
+} from "../../contracts/desktop-state";
 import type { ExtensionFlagValues } from "@pi-gui/session-driver";
 import type { ModelSettingsSnapshot } from "@pi-gui/session-driver/runtime-types";
 import { readJsonWithBackup, writeFileAtomicQueued } from "./atomic-file-write";
 import { decodeAttachments } from "./attachment-store";
+import { configureOrchestrationHistory } from "../orchestration/orchestration-history";
 import { randomUUID } from "node:crypto";
 import { basename, dirname, join } from "node:path";
 import { decodeTaskWorkbenchTemplate, type TaskWorkbenchTemplate } from "../../contracts/workbench";
@@ -41,6 +48,8 @@ export interface PersistedUiState {
   /** Names of pi-gui built-in extensions the user switched off. */
   readonly disabledBuiltinExtensions?: readonly string[];
   readonly integratedTerminalShell?: string;
+  /** Minutes before an untouched thread's runtime is reclaimed; `0` never reclaims. */
+  readonly sessionIdleReclaimMinutes?: SessionIdleReclaimMinutes;
   readonly lastViewedAtBySession?: Record<string, string>;
   readonly lastInteractedAtBySession?: Record<string, string>;
   readonly pinnedAtBySession?: Record<string, string>;
@@ -66,6 +75,8 @@ export interface LegacyPersistedUiState extends PersistedUiState {
 export async function readPersistedUiState(
   uiStateFilePath: string,
 ): Promise<LegacyPersistedUiState> {
+  // Orchestration history lives beside this file; the path is the only thing the archive needs.
+  configureOrchestrationHistory(uiStateFilePath);
   const result = await readJsonWithBackup(uiStateFilePath);
   if (result.corrupted && !result.recovered) {
     throw new Error(
@@ -110,6 +121,9 @@ export function decodePersistedUiState(parsed: unknown): LegacyPersistedUiState 
       typeof candidate.integratedTerminalShell === "string"
         ? candidate.integratedTerminalShell
         : undefined,
+    sessionIdleReclaimMinutes: isSessionIdleReclaimMinutes(candidate.sessionIdleReclaimMinutes)
+      ? candidate.sessionIdleReclaimMinutes
+      : undefined,
     lastViewedAtBySession: toStringRecord(candidate.lastViewedAtBySession),
     lastInteractedAtBySession: toStringRecord(candidate.lastInteractedAtBySession),
     pinnedAtBySession: toStringRecord(candidate.pinnedAtBySession),
@@ -143,6 +157,7 @@ export async function writePersistedUiState(
   uiStateFilePath: string,
   payload: PersistedUiState,
 ): Promise<void> {
+  configureOrchestrationHistory(uiStateFilePath);
   const serialized = `${JSON.stringify(
     {
       ...payload,
@@ -213,6 +228,7 @@ function validateUiState(value: unknown): Record<string, unknown> {
       "notificationPreferences",
       "disabledBuiltinExtensions",
       "integratedTerminalShell",
+      "sessionIdleReclaimMinutes",
       "lastViewedAtBySession",
       "lastInteractedAtBySession",
       "pinnedAtBySession",
@@ -282,6 +298,7 @@ function validateUiState(value: unknown): Record<string, unknown> {
   optional(root, "threadGrouping", isThreadGrouping);
   optional(root, "themeMode", isThemeMode);
   optional(root, "themePresetId", isThemePresetId);
+  optional(root, "sessionIdleReclaimMinutes", isSessionIdleReclaimMinutes);
   optional(root, "modelSettingsScopeMode", (v) => v === "per-repo" || v === "app-global");
   if (root.notificationPreferences !== undefined) {
     const preferences =
@@ -385,6 +402,7 @@ function validateUiState(value: unknown): Record<string, unknown> {
           "status",
           "latestTranscript",
           "transcript",
+          "timeline",
           "evidence",
           "supervisionLoop",
           "createdAt",
@@ -424,6 +442,9 @@ function validateUiState(value: unknown): Record<string, unknown> {
           )
             fail(`${path}.transcript`);
         }
+      }
+      if (record.timeline !== undefined && !Array.isArray(record.timeline)) {
+        fail(`${path}.timeline`);
       }
       if (record.evidence !== undefined) {
         if (!Array.isArray(record.evidence)) fail(`${path}.evidence`);
@@ -614,6 +635,8 @@ function toPersistedOrchestrationChildren(value: unknown): OrchestrationChildThr
         latestTranscript:
           stringValue(candidate.latestTranscript) || retainedTranscript.at(-1)?.text || goal,
         transcript: retainedTranscript,
+        // The child's timeline is a live projection of its session, never a stored one.
+        timeline: [],
         evidence: toPersistedEvidence(candidate.evidence, id),
         ...(supervisionLoop ? { supervisionLoop } : {}),
         createdAt,

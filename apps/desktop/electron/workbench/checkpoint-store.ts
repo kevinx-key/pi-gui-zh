@@ -1094,6 +1094,8 @@ function git(
         signal,
         killSignal: "SIGKILL",
         maxBuffer: 16 * 1024 * 1024,
+        // Checkpoints run git repeatedly while a session works; hide the console window.
+        windowsHide: true,
       },
       (error, stdout) => (error ? reject(error) : accept(stdout)),
     );

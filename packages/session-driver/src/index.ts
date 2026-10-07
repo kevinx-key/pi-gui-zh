@@ -26,6 +26,7 @@ export type {
   SessionErrorInfo,
   SessionEventListener,
   SessionId,
+  SessionMcpMode,
   SessionMessageDeliveryMode,
   SessionMessageInput,
   SessionModelSelection,

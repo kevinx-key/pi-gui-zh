@@ -40,6 +40,8 @@ import {
 } from "../../ui/icons";
 import { extensionToLanguage } from "../../ui/syntax-highlight";
 import { useT, type MessageParams } from "../../i18n/i18n";
+import type { OrchestrationChildThread } from "../../../contracts/desktop-state";
+import { ChildThreadBlock } from "./child-thread-block";
 
 export function TimelineItem({
   item,
@@ -55,6 +57,8 @@ export function TimelineItem({
   onExtensionAction,
   annotationMarkers,
   onOpenAnnotation,
+  childThread,
+  onOpenChildSession,
 }: {
   readonly item: DisplayTimelineItem;
   readonly expandedToolCallIds?: ReadonlySet<string>;
@@ -69,6 +73,9 @@ export function TimelineItem({
   readonly onExtensionAction?: RunExtensionAction;
   readonly annotationMarkers?: readonly AnnotationMarker[];
   readonly onOpenAnnotation?: OpenAnnotation;
+  /** The child thread this tool call started, shown under its row. */
+  readonly childThread?: OrchestrationChildThread;
+  readonly onOpenChildSession?: (thread: OrchestrationChildThread) => void;
 }) {
   switch (item.kind) {
     case "turn-marker":
@@ -97,6 +104,8 @@ export function TimelineItem({
           expanded={expandedToolCallIds?.has(item.callId) ?? false}
           onToggle={onToggleToolCall}
           onViewFileInDiff={onViewFileInDiff}
+          childThread={childThread}
+          onOpenChildSession={onOpenChildSession}
         />
       );
     case "summary":
@@ -308,11 +317,15 @@ function TimelineToolCallItem({
   expanded,
   onToggle,
   onViewFileInDiff,
+  childThread,
+  onOpenChildSession,
 }: {
   readonly item: TimelineToolCall;
   readonly expanded: boolean;
   readonly onToggle?: (callId: string) => void;
   readonly onViewFileInDiff?: (path: string) => void;
+  readonly childThread?: OrchestrationChildThread;
+  readonly onOpenChildSession?: (thread: OrchestrationChildThread) => void;
 }) {
   const t = useT();
   const hasContent = item.input !== undefined || item.output !== undefined;
@@ -385,6 +398,9 @@ function TimelineToolCallItem({
           </button>
         ) : null}
       </div>
+      {childThread ? (
+        <ChildThreadBlock thread={childThread} onOpenSession={onOpenChildSession} />
+      ) : null}
       {images.length > 0 ? (
         // Shown while collapsed too: an image a tool made is a result in itself.
         <div className="timeline-tool__images" data-testid="timeline-tool-images">

@@ -161,22 +161,38 @@ export function ExtensionDialog({
 }) {
   const t = useT();
   const [draft, setDraft] = useState("");
+  const [chosen, setChosen] = useState<readonly string[]>([]);
   const titleId = useId();
   const bodyId = useId();
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const cancelButtonRef = useRef<HTMLButtonElement | null>(null);
   const firstOptionButtonRef = useRef<HTMLButtonElement | null>(null);
 
+  // A question (pi-gui's ask_user, or any select that offers choices) waits for Confirm: the
+  // plain click-to-answer select keeps its one-click behaviour.
+  const choiceDialog = dialog.kind === "select" ? dialog : undefined;
+  const isChoiceDialog =
+    choiceDialog !== undefined &&
+    (choiceDialog.allowMultiple !== undefined || choiceDialog.allowCustom !== undefined);
+  const selectedValues = (): readonly string[] => {
+    const custom = draft.trim();
+    return custom ? [...chosen, custom] : [...chosen];
+  };
+  const canSubmitChoice = chosen.length > 0 || draft.trim().length > 0;
+
   useEffect(() => {
     if (dialog.kind === "input") {
       setDraft(dialog.initialValue ?? "");
+      setChosen([]);
       return;
     }
     if (dialog.kind === "editor") {
       setDraft(dialog.initialValue ?? "");
+      setChosen([]);
       return;
     }
     setDraft("");
+    setChosen([]);
   }, [dialog]);
 
   useEffect(() => {
@@ -190,6 +206,16 @@ export function ExtensionDialog({
   }, [dialog]);
 
   const respondWithCancel = () => onRespond({ requestId: dialog.requestId, cancelled: true });
+  const toggleChoice = (option: string) => {
+    setChosen((current) => {
+      if (choiceDialog?.allowMultiple !== true) {
+        return current.includes(option) ? [] : [option];
+      }
+      return current.includes(option)
+        ? current.filter((entry) => entry !== option)
+        : [...current, option];
+    });
+  };
   const respondWithSubmit = () => {
     if (dialog.kind === "confirm") {
       onRespond({ requestId: dialog.requestId, confirmed: true });
@@ -197,10 +223,19 @@ export function ExtensionDialog({
     }
     if (dialog.kind === "input" || dialog.kind === "editor") {
       onRespond({ requestId: dialog.requestId, value: draft });
+      return;
+    }
+    if (isChoiceDialog) {
+      if (!canSubmitChoice) {
+        return;
+      }
+      onRespond({ requestId: dialog.requestId, values: selectedValues() });
     }
   };
   const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === "Tab") {
+    // A question card is not modal: Tab leaves it for the sidebar or the composer. The other
+    // dialogs keep focus inside themselves until they are answered or dismissed.
+    if (event.key === "Tab" && !isChoiceDialog) {
       trapDialogFocus(event, dialogRef.current);
       return;
     }
@@ -209,21 +244,32 @@ export function ExtensionDialog({
       respondWithCancel();
       return;
     }
+    if (event.key === "Enter" && isChoiceDialog && event.target instanceof HTMLInputElement) {
+      event.preventDefault();
+      respondWithSubmit();
+      return;
+    }
     if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
-      if (dialog.kind === "confirm" || dialog.kind === "input" || dialog.kind === "editor") {
+      if (
+        dialog.kind === "confirm" ||
+        dialog.kind === "input" ||
+        dialog.kind === "editor" ||
+        isChoiceDialog
+      ) {
         event.preventDefault();
         respondWithSubmit();
       }
     }
   };
 
+  // A question is answered in the conversation that asked it: the card waits above that session's
+  // composer instead of covering the window, so the rest of the app stays usable meanwhile.
   return (
-    <div className="extension-dialog-backdrop">
+    <div className="extension-dialog-inline">
       <div
         aria-describedby={dialog.kind === "confirm" ? bodyId : undefined}
         aria-labelledby={titleId}
-        aria-modal="true"
-        className="extension-dialog"
+        className="extension-dialog extension-dialog--inline"
         data-testid="extension-dialog"
         ref={dialogRef}
         role="dialog"
@@ -238,7 +284,7 @@ export function ExtensionDialog({
           </p>
         ) : null}
 
-        {dialog.kind === "select" ? (
+        {dialog.kind === "select" && !isChoiceDialog ? (
           <div className="extension-dialog__options">
             {dialog.options.map((option, index) => (
               <button
@@ -252,6 +298,35 @@ export function ExtensionDialog({
               </button>
             ))}
           </div>
+        ) : null}
+
+        {isChoiceDialog && choiceDialog ? (
+          <>
+            <div className="extension-dialog__options" role="group">
+              {choiceDialog.options.map((option, index) => (
+                <button
+                  aria-pressed={chosen.includes(option)}
+                  className="extension-dialog__option extension-dialog__option--choice"
+                  data-testid="extension-dialog-choice"
+                  key={option}
+                  ref={index === 0 ? firstOptionButtonRef : undefined}
+                  type="button"
+                  onClick={() => toggleChoice(option)}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
+            {choiceDialog.allowCustom === true ? (
+              <input
+                className="skills-search"
+                data-testid="extension-dialog-custom"
+                placeholder={t("Type an answer of your own")}
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+              />
+            ) : null}
+          </>
         ) : null}
 
         {dialog.kind === "input" ? (
@@ -301,6 +376,17 @@ export function ExtensionDialog({
               onClick={respondWithSubmit}
             >
               {t("Submit")}
+            </button>
+          ) : null}
+          {isChoiceDialog ? (
+            <button
+              className="button button--primary"
+              data-testid="extension-dialog-confirm"
+              disabled={!canSubmitChoice}
+              type="button"
+              onClick={respondWithSubmit}
+            >
+              {t("Confirm")}
             </button>
           ) : null}
         </div>

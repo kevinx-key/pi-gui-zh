@@ -37,6 +37,7 @@ export interface WorkspaceStateView {
 type WorkspaceDriver = Pick<
   PiSdkDriver,
   | "archiveSession"
+  | "closeSession"
   | "createSession"
   | "forkSession"
   | "generateThreadTitle"
@@ -249,13 +250,44 @@ async function selectWorkspace(
     await store.cancelPendingDialogsForSession(currentSessionRef);
   }
 
-  return syncWorkspace(store, workspaceId, {
+  const previousWorkspaceId = state.selectedWorkspaceId;
+  const next = await syncWorkspace(store, workspaceId, {
     selectedWorkspaceId: workspaceId,
     selectedSessionId: state.selectedWorkspaceId === workspaceId ? state.selectedSessionId : "",
     clearLastError: true,
     refreshWorktrees: true,
     activeView: "threads",
   });
+  // Leaving a workspace leaves its threads behind: each open one holds an extension host and
+  // the MCP servers pi started for it, so switching back and forth would otherwise pile up
+  // process clusters. A running turn keeps its session until it ends, and a closed thread
+  // reopens from its transcript the moment it is used again.
+  if (previousWorkspaceId && previousWorkspaceId !== workspaceId) {
+    await closeWorkspaceSessions(store, previousWorkspaceId);
+  }
+  return next;
+}
+
+async function closeWorkspaceSessions(
+  store: WorkspaceOwnerHost,
+  workspaceId: string,
+): Promise<void> {
+  const workspace = store.workspaceState().workspaces.find((entry) => entry.id === workspaceId);
+  if (!workspace) {
+    return;
+  }
+
+  for (const session of workspace.sessions) {
+    if (session.status === "running") {
+      continue;
+    }
+    try {
+      await store.driver.closeSession({ workspaceId, sessionId: session.id });
+    } catch (error) {
+      // One session failing to close must not keep the rest of the workspace open.
+      console.warn(`[app-store] failed to close session ${workspaceId}:${session.id}`, error);
+    }
+  }
 }
 
 async function selectSession(

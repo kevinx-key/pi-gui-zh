@@ -1,5 +1,6 @@
 import { useEffect, useRef, type ReactNode } from "react";
 import { SettingsSwitch } from "../settings/settings-controls";
+import { hasOpenModalDialog } from "../../ui/dialog-focus";
 import { useT } from "../../i18n/i18n";
 
 /** Drill-in page for one skill or extension, in the style of Codex's Hooks detail. */
@@ -37,7 +38,7 @@ export function ResourceDetail({
     // Capture phase, so Escape returns to the list before the settings surface closes.
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.defaultPrevented || event.isComposing) return;
-      if (document.querySelector("[aria-modal='true'], .extension-dialog-backdrop")) return;
+      if (hasOpenModalDialog()) return;
       event.preventDefault();
       backRef.current();
     };

@@ -251,6 +251,7 @@ async function requestPackagedMacOsNotificationPermission(): Promise<
   try {
     const { stdout } = await execFileAsync(helperPath, ["--request"], {
       env: process.env,
+      windowsHide: true,
     });
     const parsed = JSON.parse(stdout) as { status?: unknown };
     return normalizePermissionStatus(parsed.status) ?? "unknown";
@@ -318,6 +319,7 @@ async function readPackagedMacOsNotificationPermissionStatus(): Promise<
   try {
     const { stdout } = await execFileAsync(helperPath, [], {
       env: process.env,
+      windowsHide: true,
     });
     const parsed = JSON.parse(stdout) as { status?: unknown };
     return normalizePermissionStatus(parsed.status);

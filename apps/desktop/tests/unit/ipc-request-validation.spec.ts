@@ -119,9 +119,13 @@ test("IPC request validation checks discriminated command records", () => {
     requestId: "request-a",
     confirmed: false,
   });
+  expect(expectHostUiResponse({ requestId: "request-a", values: ["one", "two"] })).toEqual({
+    requestId: "request-a",
+    values: ["one", "two"],
+  });
   expect(() =>
     expectHostUiResponse({ requestId: "request-a", confirmed: true, cancelled: true }),
-  ).toThrow("response must contain exactly one of value, confirmed, or cancelled");
+  ).toThrow("response must contain exactly one of value, values, confirmed, or cancelled");
 
   expect(
     expectForkThreadInput({

@@ -19,6 +19,10 @@ export {
 } from "./runtime-supervisor.js";
 export type { PiSdkDriverOptions, SyncWorkspaceResult } from "./session-supervisor.js";
 export { SessionSupervisor } from "./session-supervisor.js";
+export {
+  DEFAULT_IDLE_SESSION_TTL_MS,
+  DEFAULT_IDLE_SWEEP_INTERVAL_MS,
+} from "./session-supervisor.js";
 export { SessionLeasedError } from "./session-lease.js";
 export type { LeaseInfo } from "./session-lease.js";
 export { RUNTIME_SCHEMA_VERSION } from "./session-schema.js";

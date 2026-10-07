@@ -137,10 +137,12 @@ test("create_child_thread returns after a slow worker starts, before its turn co
       (entry) => entry.sourceToolCallId === "create-child-start-ack",
     );
     expect(child?.status).toBe("running");
-    const childRunningIndicator = window.locator(
-      `.session-row[data-session-id="${child?.childSessionId}"] .session-row__status--running`,
-    );
-    await expect(childRunningIndicator).toBeVisible();
+    // A child thread runs inside its parent's timeline, so it is not a row in the sidebar. This
+    // tool call came from the runtime hook, so no parent row exists to draw its block here; the
+    // child-thread spec covers the block itself.
+    await expect(
+      window.locator(`.session-row[data-session-id="${child?.childSessionId}"]`),
+    ).toHaveCount(0);
     if (proofDir) {
       await window.screenshot({
         path: join(proofDir, "orchestration-child-running.png"),

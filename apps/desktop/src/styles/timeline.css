@@ -485,6 +485,105 @@
   overflow-y: auto;
 }
 
+/* A child thread the parent started: one summary row, then the child's own rows underneath. */
+.child-thread {
+  margin-top: 6px;
+  border: 1px solid var(--border);
+  border-left: 2px solid var(--accent-tint-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  overflow: hidden;
+}
+
+.child-thread__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+}
+
+.child-thread__toggle {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-strong);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+}
+
+.child-thread__chevron {
+  flex: none;
+  display: inline-flex;
+  color: var(--muted-strong);
+  transition: transform 120ms ease;
+}
+
+.child-thread__chevron--expanded {
+  transform: rotate(90deg);
+}
+
+.child-thread__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.child-thread__status,
+.child-thread__meta {
+  flex: none;
+  color: var(--muted-strong);
+  font-size: 11px;
+}
+
+.child-thread__status--failed {
+  color: var(--error-ink);
+}
+
+.child-thread__open {
+  flex: none;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  background: none;
+  color: var(--muted-strong);
+  font: inherit;
+  font-size: 11px;
+}
+
+.child-thread__open:hover {
+  border-color: var(--line-strong);
+  color: var(--text-strong);
+}
+
+.child-thread__preview,
+.child-thread__empty {
+  margin: 0;
+  padding: 0 10px 8px;
+  color: var(--muted-strong);
+  font-size: 12px;
+}
+
+.child-thread__preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.child-thread__timeline {
+  display: grid;
+  gap: 8px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
 .timeline-tool__diff-header {
   display: flex;
   align-items: center;

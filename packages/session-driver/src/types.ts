@@ -141,7 +141,17 @@ export interface CreateSessionOptions {
   readonly initialThinkingLevel?: string;
   /** Values for flags the session's extensions registered, applied when pi loads them. */
   readonly extensionFlagValues?: ExtensionFlagValues;
+  /**
+   * Whether this session loads pi's MCP add-on, and with it the servers in mcp.json.
+   * "inherit" (the default) leaves every add-on in place; "off" omits the MCP add-on so the
+   * session spawns no MCP child process of its own. Child threads use "off": they do not need
+   * MCP, and pi connects the servers per session, so one per child thread is expensive.
+   */
+  readonly mcp?: SessionMcpMode;
 }
+
+/** Per-session switch for pi's MCP add-on (`builtin:mcp`). */
+export type SessionMcpMode = "inherit" | "off";
 
 /** Extension flag values by flag name, as `pi --name` (boolean) or `pi --name value` (string). */
 export type ExtensionFlagValues = Readonly<Record<string, boolean | string>>;
@@ -277,6 +287,11 @@ export type HostUiResponse =
       readonly requestId: string;
       readonly value: string;
     }
+  /** Several answers to one question, in the order the user picked them. */
+  | {
+      readonly requestId: string;
+      readonly values: readonly string[];
+    }
   | {
       readonly requestId: string;
       readonly confirmed: boolean;
@@ -309,6 +324,11 @@ export type HostUiRequest =
       readonly title: string;
       readonly options: readonly string[];
       readonly allowMultiple?: boolean;
+      /**
+       * Offer a free-form answer row next to the options. pi-gui's own `ask_user` tool sets it,
+       * so a question is never limited to the choices the model thought of.
+       */
+      readonly allowCustom?: boolean;
       readonly timeoutMs?: number;
     }
   | {
@@ -422,6 +442,19 @@ export interface SessionDriver {
   respondToHostUiRequest(sessionRef: SessionRef, response: HostUiResponse): Promise<void>;
   subscribe(sessionRef: SessionRef, listener: SessionEventListener): Unsubscribe;
   closeSession(sessionRef: SessionRef): Promise<void>;
+  /**
+   * Close every open session, releasing the extension hosts and MCP child processes
+   * they own. The host calls this when the app quits: sessions left open would
+   * otherwise leave those children behind as orphans.
+   */
+  closeAllSessions(): Promise<void>;
+  /**
+   * How long a session nobody touches keeps its runtime — and the extension hosts and MCP
+   * child processes that runtime owns. `null` (or `0`) turns reclaiming off. Setting it takes
+   * effect at once, on the sessions already open. Sessions a window is showing, ones running a
+   * turn and ones waiting on a dialog are never reclaimed either way.
+   */
+  setIdleSessionTtlMs(idleSessionTtlMs: number | null): void;
 }
 
 export interface SessionSchemaInfo {

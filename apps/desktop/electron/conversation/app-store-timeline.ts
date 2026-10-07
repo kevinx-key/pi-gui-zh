@@ -22,6 +22,7 @@ import {
   readThreadToolName,
   sendMessageToThreadToolName,
 } from "../orchestration/orchestration-runtime";
+import { askUserToolName } from "../user-questions/ask-user-runtime";
 
 export interface RunMetrics {
   readonly startedAt: string;
@@ -467,6 +468,9 @@ function clearRunState(
 
 function toolLabel(toolName: string, input: unknown): string {
   const detail = toolInputSummary(input);
+  if (toolName === askUserToolName) {
+    return detail ? `Asked the user: ${detail}` : "Asked the user";
+  }
   if (toolName === createChildThreadToolName) {
     return detail ? `Started child thread: ${detail}` : "Started child thread";
   }

@@ -12,8 +12,13 @@ import type {
 import type { SessionSchemaInfo } from "@pi-gui/session-driver";
 export type { SessionSchemaInfo } from "@pi-gui/session-driver";
 export type SessionStatus = "idle" | "running" | "failed";
-export type { SessionRole, TimelineToolCall, TranscriptMessage } from "./timeline-types";
-import type { TranscriptMessage } from "./timeline-types";
+export type {
+  SessionRole,
+  TimelineToolCall,
+  TimelineTranscriptItem,
+  TranscriptMessage,
+} from "./timeline-types";
+import type { TimelineTranscriptItem, TranscriptMessage } from "./timeline-types";
 import type { ScheduledTaskRecord } from "./scheduled-tasks";
 export type {
   CreateScheduledTaskInput,
@@ -68,6 +73,25 @@ export interface NotificationPreferences {
   readonly backgroundCompletion: boolean;
   readonly backgroundFailure: boolean;
   readonly attentionNeeded: boolean;
+}
+
+/**
+ * How long a thread nobody has opened keeps its runtime before pi-gui reclaims it, in minutes.
+ * `0` means "never reclaim": the idle sweep stays switched off and runtimes live until the
+ * thread is closed by hand or the app quits.
+ */
+export type SessionIdleReclaimMinutes = 0 | 5 | 15 | 30 | 60;
+
+/** The settings dropdown's choices, in the order it offers them; "never" comes last. */
+export const sessionIdleReclaimMinuteOptions = [
+  5, 15, 30, 60, 0,
+] as const satisfies readonly SessionIdleReclaimMinutes[];
+
+/** Reclaiming after 15 minutes is the behaviour pi-gui has always had, so it is the default. */
+export const DEFAULT_SESSION_IDLE_RECLAIM_MINUTES: SessionIdleReclaimMinutes = 15;
+
+export function isSessionIdleReclaimMinutes(value: unknown): value is SessionIdleReclaimMinutes {
+  return sessionIdleReclaimMinuteOptions.includes(value as SessionIdleReclaimMinutes);
 }
 
 export interface ComposerImageAttachment {
@@ -193,7 +217,19 @@ export interface OrchestrationChildThread {
   readonly goal: string;
   readonly status: OrchestrationChildThreadStatus;
   readonly latestTranscript: string;
+  /** The child's recent messages. Re-projected from the child's session, so it is never persisted. */
   readonly transcript: readonly OrchestrationChildTranscriptMessage[];
+  /**
+   * The child's own recent timeline items, which the parent window draws as a sub-agent block
+   * under the tool call that started it. Derived from the live transcript, so it is never
+   * persisted and is re-projected from the session's cached transcript.
+   */
+  readonly timeline: readonly TimelineTranscriptItem[];
+  /**
+   * What the child has reported, newest first. `ui-state.json` holds only the newest record and
+   * appends the rest to the child's archive file: the whole UI state is rewritten on every change,
+   * and one child's evidence log is tens of KB of history it does not need to rewrite.
+   */
   readonly evidence: readonly OrchestrationEvidenceRecord[];
   readonly supervisionLoop?: OrchestrationSupervisionLoop;
   readonly createdAt: string;
@@ -365,6 +401,8 @@ export interface DesktopAppState {
   readonly scheduledTasks: readonly ScheduledTaskRecord[];
   readonly notificationPreferences: NotificationPreferences;
   readonly integratedTerminalShell: string;
+  /** Minutes an untouched thread may stay idle before its runtime is reclaimed; `0` never reclaims. */
+  readonly sessionIdleReclaimMinutes: SessionIdleReclaimMinutes;
   readonly lastViewedAtBySession: Readonly<Record<string, string>>;
   readonly lastInteractedAtBySession: Readonly<Record<string, string>>;
   readonly pinnedAtBySession: Readonly<Record<string, string>>;
@@ -421,6 +459,7 @@ export function createEmptyDesktopAppState(): DesktopAppState {
       attentionNeeded: true,
     },
     integratedTerminalShell: "",
+    sessionIdleReclaimMinutes: DEFAULT_SESSION_IDLE_RECLAIM_MINUTES,
     lastViewedAtBySession: {},
     lastInteractedAtBySession: {},
     pinnedAtBySession: {},

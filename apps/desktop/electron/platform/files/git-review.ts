@@ -116,6 +116,9 @@ function git(cwd: string, args: readonly string[], maxBuffer = MAX_GIT_BYTES): P
         maxBuffer,
         timeout: 15_000,
         env: isolatedGitEnvironment(),
+        // A console window per call flashes over the app on Windows: 9 git helpers run while
+        // a session works (changed files, diffs, review, checkpoints, worktrees).
+        windowsHide: true,
       },
       (error, stdout, stderr) => {
         if (error && error.code === "ERR_CHILD_PROCESS_STDIO_MAXBUFFER") {

@@ -236,6 +236,39 @@ export interface OrchestrationChildThread {
   readonly updatedAt: string;
 }
 
+/**
+ * A finished child's record as it stood when it finished: the catalog entry of the child's archive.
+ * The archive holds it because `ui-state.json` keeps only the child's card and newest evidence.
+ */
+export interface OrchestrationChildHistorySnapshot {
+  readonly id: string;
+  readonly title: string;
+  readonly goal: string;
+  readonly status: OrchestrationChildThreadStatus;
+  readonly parentWorkspaceId: string;
+  readonly parentSessionId: string;
+  readonly childWorkspaceId: string;
+  readonly childSessionId: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+  readonly transcript: readonly OrchestrationChildTranscriptMessage[];
+  readonly timeline: readonly TimelineTranscriptItem[];
+}
+
+/**
+ * A child's archived history: its evidence log (newest first, one entry per record id) plus the
+ * snapshot written when it finished. Read on demand from `<userData>/orchestration/<id>.ndjson`.
+ */
+export interface OrchestrationChildArchive {
+  readonly snapshot?: OrchestrationChildHistorySnapshot;
+  readonly evidence: readonly OrchestrationEvidenceRecord[];
+}
+
+/** Input of the read-only archive request; the archive itself stays in the main process. */
+export interface ReadOrchestrationChildHistoryInput {
+  readonly childThreadId: string;
+}
+
 export interface SendChildThreadFollowUpInput {
   readonly childThreadId: string;
   readonly text: string;

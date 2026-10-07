@@ -62,6 +62,8 @@ import type {
   DesktopAppState,
   ForkThreadInput,
   NotificationPreferences,
+  OrchestrationChildArchive,
+  ReadOrchestrationChildHistoryInput,
   RemoveWorktreeInput,
   SendChildThreadFollowUpInput,
   SessionIdleReclaimMinutes,
@@ -264,6 +266,10 @@ contextBridge.exposeInMainWorld("piApp", {
     ipcRenderer.invoke(desktopIpc.sendChildThreadFollowUp, input) as Promise<DesktopAppState>,
   setChildSupervisionLoop: (input: SetChildSupervisionLoopInput) =>
     ipcRenderer.invoke(desktopIpc.setChildSupervisionLoop, input) as Promise<DesktopAppState>,
+  readOrchestrationChildHistory: (input: ReadOrchestrationChildHistoryInput) =>
+    ipcRenderer.invoke(desktopIpc.readOrchestrationChildHistory, input) as Promise<
+      OrchestrationChildArchive | undefined
+    >,
   createScheduledTask: (input: CreateScheduledTaskInput) =>
     ipcRenderer.invoke(desktopIpc.createScheduledTask, input) as Promise<DesktopAppState>,
   updateScheduledTask: (id: string, patch: UpdateScheduledTaskInput) =>

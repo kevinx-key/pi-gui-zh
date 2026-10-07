@@ -56,6 +56,7 @@ import {
   expectSessionIdleReclaimMinutes,
   expectSessionTarget,
   expectRecord,
+  expectReadOrchestrationChildHistoryInput,
   expectSetChildSupervisionLoopInput,
   expectStartThreadInput,
   expectCreateScheduledTaskInput,
@@ -73,6 +74,7 @@ import {
   expectTextEditMenuRequest,
 } from "./request-validation";
 import { runExtensionAction, type AppOperationHost } from "../extensions/app-operations";
+import { readOrchestrationChildArchive } from "../orchestration/orchestration-history";
 
 type StateOwner = Pick<
   DesktopAppStore,
@@ -708,6 +710,13 @@ export function registerDesktopIpc({
       owners.orchestration.setChildSupervisionLoop(expectSetChildSupervisionLoopInput(rawInput)),
     ),
   );
+  // Read-only and on demand: the child's full evidence log is on disk, not in the UI state, and the
+  // renderer only asks for it when the operator expands that child's card.
+  ipcMain.handle(desktopIpc.readOrchestrationChildHistory, (event, rawInput: unknown) => {
+    windows.windowForSender(event.sender);
+    const input = expectReadOrchestrationChildHistoryInput(rawInput);
+    return readOrchestrationChildArchive(input.childThreadId);
+  });
   ipcMain.handle(desktopIpc.createScheduledTask, (event, rawInput: unknown) =>
     run(event, () =>
       owners.scheduledTasks.createScheduledTask(expectCreateScheduledTaskInput(rawInput)),

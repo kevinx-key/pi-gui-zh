@@ -1,11 +1,15 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type {
+  OrchestrationChildArchive,
   OrchestrationChildThread,
   OrchestrationChildThreadStatus,
+  OrchestrationEvidenceRecord,
+  OrchestrationEvidenceStatus,
 } from "../../../contracts/desktop-state";
 import { t } from "../../../contracts/i18n";
 import { ChevronRightIcon } from "../../ui/icons";
 import { useT } from "../../i18n/i18n";
+import { formatRelativeTime, titleCase } from "../../lib/string-utils";
 import { TimelineItem } from "./timeline-item";
 
 /** A child's own rows, bounded like its transcript: the block stays a summary, not a second thread. */
@@ -24,6 +28,122 @@ function childStatusLabel(status: OrchestrationChildThreadStatus): string {
     case "failed":
       return t("Failed");
   }
+}
+
+function evidenceStatusLabel(status: OrchestrationEvidenceStatus): string {
+  switch (status) {
+    case "reported":
+      return t("Reported");
+    case "accepted":
+      return t("Accepted");
+    case "running":
+      return t("Running");
+    case "passed":
+      return t("Passed");
+    case "failed":
+      return t("Failed");
+    case "blocked":
+      return t("Blocked");
+  }
+}
+
+/**
+ * The child's evidence, drawn under its card. The state holds only the newest record, so the card
+ * paints that one for free; the rest of the log lives in the child's archive file and is read over
+ * IPC only when the operator expands the card, which keeps a screen full of children from firing a
+ * burst of archive reads at startup.
+ */
+function ChildThreadEvidence({
+  childThreadId,
+  stateEvidence,
+  expanded,
+}: {
+  readonly childThreadId: string;
+  readonly stateEvidence: readonly OrchestrationEvidenceRecord[];
+  readonly expanded: boolean;
+}) {
+  const tr = useT();
+  const [archive, setArchive] = useState<OrchestrationChildArchive | undefined>(undefined);
+  const [unavailable, setUnavailable] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!expanded) {
+      return;
+    }
+    const read = window.piApp?.readOrchestrationChildHistory;
+    if (!read) {
+      setUnavailable(true);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    read({ childThreadId }).then(
+      (result) => {
+        if (cancelled) {
+          return;
+        }
+        setArchive(result);
+        setUnavailable(!result);
+        setLoading(false);
+      },
+      () => {
+        if (!cancelled) {
+          setUnavailable(true);
+          setLoading(false);
+        }
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [childThreadId, expanded]);
+
+  const archived = archive?.evidence ?? [];
+  const records = archived.length > 0 ? archived : stateEvidence;
+  return (
+    <div className="child-thread__evidence-area" data-testid="child-thread-evidence">
+      <p className="child-thread__evidence-head">
+        {loading && archived.length === 0
+          ? tr("Loading history…")
+          : tr("Evidence ({count})", { count: records.length })}
+      </p>
+      {records.length === 0 ? (
+        <p className="child-thread__evidence-note">{tr("No evidence yet.")}</p>
+      ) : (
+        <ul className="child-thread__evidence-list">
+          {records.map((record) => (
+            <li
+              className={`child-thread__evidence child-thread__evidence--${record.status}`}
+              data-testid="child-thread-evidence-row"
+              key={record.id}
+            >
+              <div className="child-thread__evidence-meta">
+                <span className="child-thread__evidence-kind">{titleCase(record.kind)}</span>
+                <span className="child-thread__evidence-status">
+                  {evidenceStatusLabel(record.status)}
+                </span>
+                <time
+                  className="child-thread__evidence-time"
+                  dateTime={record.createdAt}
+                  title={new Date(record.createdAt).toLocaleString()}
+                >
+                  {formatRelativeTime(record.createdAt)}
+                </time>
+              </div>
+              <p className="child-thread__evidence-title">{record.title}</p>
+              {record.detail ? (
+                <p className="child-thread__evidence-detail">{record.detail}</p>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+      )}
+      {unavailable && archived.length === 0 ? (
+        <p className="child-thread__evidence-note">{tr("Earlier history is unavailable.")}</p>
+      ) : null}
+    </div>
+  );
 }
 
 /**
@@ -113,6 +233,11 @@ export function ChildThreadBlock({
       ) : thread.latestTranscript ? (
         <p className="child-thread__preview">{thread.latestTranscript}</p>
       ) : null}
+      <ChildThreadEvidence
+        childThreadId={thread.id}
+        expanded={expanded}
+        stateEvidence={thread.evidence}
+      />
     </section>
   );
 }

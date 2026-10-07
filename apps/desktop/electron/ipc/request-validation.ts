@@ -17,6 +17,7 @@ import {
   type ForkThreadInput,
   type ModelSettingsScopeMode,
   type NotificationPreferences,
+  type ReadOrchestrationChildHistoryInput,
   type RemoveWorktreeInput,
   type SendChildThreadFollowUpInput,
   type SessionIdleReclaimMinutes,
@@ -330,6 +331,15 @@ export function expectSetChildSupervisionLoopInput(value: unknown): SetChildSupe
   return {
     childThreadId: expectNonEmptyString(record.childThreadId, "input.childThreadId"),
     gate: record.gate,
+  };
+}
+
+export function expectReadOrchestrationChildHistoryInput(
+  value: unknown,
+): ReadOrchestrationChildHistoryInput {
+  const record = expectRecord(value, "input");
+  return {
+    childThreadId: expectNonEmptyString(record.childThreadId, "input.childThreadId"),
   };
 }
 

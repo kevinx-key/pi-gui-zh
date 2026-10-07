@@ -584,6 +584,73 @@
   background: var(--surface);
 }
 
+/* The child's evidence: its newest record costs nothing (it is already in the UI state); the rest
+   arrives only when the card is expanded. */
+.child-thread__evidence-area {
+  padding: 6px 10px 8px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.child-thread__evidence-head,
+.child-thread__evidence-note {
+  margin: 0;
+  color: var(--muted-strong);
+  font-size: 11px;
+}
+
+.child-thread__evidence-list {
+  display: grid;
+  gap: 6px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.child-thread__evidence {
+  padding-left: 8px;
+  border-left: 2px solid var(--line);
+}
+
+.child-thread__evidence--failed,
+.child-thread__evidence--blocked {
+  border-left-color: var(--error-ink);
+}
+
+.child-thread__evidence-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted-strong);
+  font-size: 11px;
+}
+
+.child-thread__evidence-kind {
+  font-weight: 600;
+}
+
+.child-thread__evidence-time {
+  margin-left: auto;
+}
+
+.child-thread__evidence-title {
+  margin: 2px 0 0;
+  color: var(--text-strong);
+  font-size: 12px;
+  line-height: var(--leading-snug);
+}
+
+.child-thread__evidence-detail {
+  display: -webkit-box;
+  margin: 2px 0 0;
+  overflow: hidden;
+  color: var(--muted-strong);
+  font-size: 12px;
+  line-height: var(--leading-snug);
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
 .timeline-tool__diff-header {
   display: flex;
   align-items: center;

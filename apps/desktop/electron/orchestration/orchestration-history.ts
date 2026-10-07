@@ -1,10 +1,16 @@
 import { appendFile, mkdir, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import type {
+  OrchestrationChildArchive,
+  OrchestrationChildHistorySnapshot,
   OrchestrationChildThread,
-  OrchestrationChildTranscriptMessage,
   OrchestrationEvidenceRecord,
-  TimelineTranscriptItem,
+} from "../../contracts/desktop-state";
+
+// The archive's shape is a shared contract: the renderer's lazy history panel reads it over IPC.
+export type {
+  OrchestrationChildArchive,
+  OrchestrationChildHistorySnapshot,
 } from "../../contracts/desktop-state";
 
 /**
@@ -35,22 +41,6 @@ export const MIN_SUPERVISION_INTERVAL_MS = 5_000;
 
 const ORCHESTRATION_SUPERVISION_INTERVAL_ENV = "PI_APP_ORCHESTRATION_SUPERVISION_INTERVAL_MS";
 
-/** The child record as it stood when the child finished, kept as the archive's catalog entry. */
-export interface OrchestrationChildHistorySnapshot {
-  readonly id: string;
-  readonly title: string;
-  readonly goal: string;
-  readonly status: OrchestrationChildThread["status"];
-  readonly parentWorkspaceId: string;
-  readonly parentSessionId: string;
-  readonly childWorkspaceId: string;
-  readonly childSessionId: string;
-  readonly createdAt: string;
-  readonly updatedAt: string;
-  readonly transcript: readonly OrchestrationChildTranscriptMessage[];
-  readonly timeline: readonly TimelineTranscriptItem[];
-}
-
 interface OrchestrationHistoryLine {
   readonly v: number;
   readonly childId: string;
@@ -58,13 +48,6 @@ interface OrchestrationHistoryLine {
   readonly kind: "evidence" | "child";
   readonly evidence?: OrchestrationEvidenceRecord;
   readonly child?: OrchestrationChildHistorySnapshot;
-}
-
-export interface OrchestrationChildArchive {
-  /** The record written when the child finished, if it was archived after finishing. */
-  readonly snapshot?: OrchestrationChildHistorySnapshot;
-  /** The child's evidence log, newest first, one entry per record id. */
-  readonly evidence: readonly OrchestrationEvidenceRecord[];
 }
 
 let historyDirectory: string | undefined;

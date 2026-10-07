@@ -309,6 +309,32 @@ test("ui-state.json holds a small orchestration slice that older files still loa
   assert.equal(await archiveLineCount("child-legacy"), EVIDENCE_COUNT);
 });
 
+test("a trimmed finished child still reads back its whole evidence log", async () => {
+  const directory = await tempUserDataDir();
+  configureOrchestrationHistory(join(directory, "ui-state.json"));
+
+  const finished = childThread({ id: "child-archive-read", status: "complete" });
+  // What a persist does: the log goes to the archive, the card keeps only the newest record.
+  const [card] = toPersistedOrchestrationChildren([finished]);
+  await flushOrchestrationHistory();
+  assert.equal(card.evidence.length, 1, "ui-state keeps one record; the card cannot show more");
+
+  // The read-only IPC channel hands the renderer exactly this shape, so expanding the card can
+  // paint the full log without any of it going back into ui-state.json.
+  const archive = await readOrchestrationChildArchive(card.id);
+  assert.ok(archive, "a trimmed finished child still has an archive to read");
+  assert.equal(archive.evidence.length, EVIDENCE_COUNT);
+  assert.equal(archive.evidence[0].id, `worker:message-${EVIDENCE_COUNT - 1}`, "newest first");
+  assert.equal(archive.evidence.at(-1).id, "worker:message-0");
+  assert.equal(archive.snapshot?.id, card.id);
+  assert.equal(archive.snapshot?.status, "complete");
+  assert.equal(archive.snapshot?.transcript.length, 40);
+  assert.equal(archive.snapshot?.timeline.length, 60);
+
+  // A child with no archive file is `undefined`, which is what the card shows as "no history".
+  assert.equal(await readOrchestrationChildArchive("child-never-archived"), undefined);
+});
+
 test("a finished child is trimmed to its card on load while a running one is left alone", async () => {
   const directory = await tempUserDataDir();
   configureOrchestrationHistory(join(directory, "ui-state.json"));

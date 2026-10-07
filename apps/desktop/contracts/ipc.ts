@@ -38,6 +38,8 @@ import type {
   ForkThreadInput,
   ModelSettingsScopeMode,
   NotificationPreferences,
+  OrchestrationChildArchive,
+  ReadOrchestrationChildHistoryInput,
   RemoveWorktreeInput,
   SendChildThreadFollowUpInput,
   SetChildSupervisionLoopInput,
@@ -148,6 +150,7 @@ export const desktopIpc = {
   forkThread: "pi-gui:fork-thread",
   sendChildThreadFollowUp: "pi-gui:send-child-thread-follow-up",
   setChildSupervisionLoop: "pi-gui:set-child-supervision-loop",
+  readOrchestrationChildHistory: "pi-gui:read-orchestration-child-history",
   createScheduledTask: "pi-gui:create-scheduled-task",
   updateScheduledTask: "pi-gui:update-scheduled-task",
   deleteScheduledTask: "pi-gui:delete-scheduled-task",
@@ -765,6 +768,10 @@ export interface PiDesktopApi {
   forkThread(input: ForkThreadInput): Promise<DesktopAppState>;
   sendChildThreadFollowUp(input: SendChildThreadFollowUpInput): Promise<DesktopAppState>;
   setChildSupervisionLoop(input: SetChildSupervisionLoopInput): Promise<DesktopAppState>;
+  /** Reads a child's archived evidence log; `undefined` when the child has no archive file. */
+  readOrchestrationChildHistory(
+    input: ReadOrchestrationChildHistoryInput,
+  ): Promise<OrchestrationChildArchive | undefined>;
   createScheduledTask(input: CreateScheduledTaskInput): Promise<DesktopAppState>;
   updateScheduledTask(id: string, patch: UpdateScheduledTaskInput): Promise<DesktopAppState>;
   deleteScheduledTask(id: string): Promise<DesktopAppState>;

@@ -217,20 +217,15 @@ export interface OrchestrationChildThread {
   readonly goal: string;
   readonly status: OrchestrationChildThreadStatus;
   readonly latestTranscript: string;
-  /** The child's recent messages. Re-projected from the child's session, so it is never persisted. */
-  readonly transcript: readonly OrchestrationChildTranscriptMessage[];
   /**
-   * The child's own recent timeline items, which the parent window draws as a sub-agent block
-   * under the tool call that started it. Derived from the live transcript, so it is never
-   * persisted and is re-projected from the session's cached transcript.
-   */
-  readonly timeline: readonly TimelineTranscriptItem[];
-  /**
-   * What the child has reported, newest first. `ui-state.json` holds only the newest record and
-   * appends the rest to the child's archive file: the whole UI state is rewritten on every change,
-   * and one child's evidence log is tens of KB of history it does not need to rewrite.
+   * What the child has reported, capped to the newest record. This is the card's summary: the whole
+   * UI state is deep-cloned and broadcast on every event, so a child carries only its newest record
+   * here. Its full evidence log and recent timeline live outside the state and are read on demand
+   * (`readOrchestrationChildHistory`) when the operator expands the card.
    */
   readonly evidence: readonly OrchestrationEvidenceRecord[];
+  /** Tool actions in the child's recent timeline, drawn on the collapsed card's header. */
+  readonly actionCount: number;
   readonly supervisionLoop?: OrchestrationSupervisionLoop;
   readonly createdAt: string;
   readonly updatedAt: string;
@@ -251,8 +246,6 @@ export interface OrchestrationChildHistorySnapshot {
   readonly childSessionId: string;
   readonly createdAt: string;
   readonly updatedAt: string;
-  readonly transcript: readonly OrchestrationChildTranscriptMessage[];
-  readonly timeline: readonly TimelineTranscriptItem[];
 }
 
 /**
@@ -262,6 +255,17 @@ export interface OrchestrationChildHistorySnapshot {
 export interface OrchestrationChildArchive {
   readonly snapshot?: OrchestrationChildHistorySnapshot;
   readonly evidence: readonly OrchestrationEvidenceRecord[];
+}
+
+/**
+ * A child's full history, read on demand over IPC when its card is expanded: the archive's evidence
+ * plus the child's live recent timeline (read from its session, falling back to the snapshot when
+ * the session is gone). Never held in the app state.
+ */
+export interface OrchestrationChildHistory {
+  readonly snapshot?: OrchestrationChildHistorySnapshot;
+  readonly evidence: readonly OrchestrationEvidenceRecord[];
+  readonly timeline: readonly TimelineTranscriptItem[];
 }
 
 /** Input of the read-only archive request; the archive itself stays in the main process. */

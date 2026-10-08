@@ -404,6 +404,7 @@ function validateUiState(value: unknown): Record<string, unknown> {
           "transcript",
           "timeline",
           "evidence",
+          "actionCount",
           "supervisionLoop",
           "createdAt",
           "updatedAt",
@@ -431,6 +432,7 @@ function validateUiState(value: unknown): Record<string, unknown> {
         (v) => toOptionalOrchestrationStatus(v) !== undefined,
         `${path}.status`,
       );
+      optional(record, "actionCount", (v) => numberValue(v) !== undefined, `${path}.actionCount`);
       if (record.transcript !== undefined) {
         if (!Array.isArray(record.transcript)) fail(`${path}.transcript`);
         for (const message of record.transcript as unknown[]) {
@@ -634,10 +636,8 @@ function toPersistedOrchestrationChildren(value: unknown): OrchestrationChildThr
         status,
         latestTranscript:
           stringValue(candidate.latestTranscript) || retainedTranscript.at(-1)?.text || goal,
-        transcript: retainedTranscript,
-        // The child's timeline is a live projection of its session, never a stored one.
-        timeline: [],
         evidence: toPersistedEvidence(candidate.evidence, id),
+        actionCount: 0,
         ...(supervisionLoop ? { supervisionLoop } : {}),
         createdAt,
         updatedAt,

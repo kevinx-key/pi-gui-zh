@@ -74,7 +74,6 @@ import {
   expectTextEditMenuRequest,
 } from "./request-validation";
 import { runExtensionAction, type AppOperationHost } from "../extensions/app-operations";
-import { readOrchestrationChildArchive } from "../orchestration/orchestration-history";
 
 type StateOwner = Pick<
   DesktopAppStore,
@@ -136,7 +135,7 @@ type ConversationOwner = Pick<
 
 type OrchestrationOwner = Pick<
   DesktopAppStore,
-  "sendChildThreadFollowUp" | "setChildSupervisionLoop"
+  "sendChildThreadFollowUp" | "setChildSupervisionLoop" | "readChildHistoryDetail"
 >;
 
 type ScheduledTaskOwner = Pick<
@@ -715,7 +714,7 @@ export function registerDesktopIpc({
   ipcMain.handle(desktopIpc.readOrchestrationChildHistory, (event, rawInput: unknown) => {
     windows.windowForSender(event.sender);
     const input = expectReadOrchestrationChildHistoryInput(rawInput);
-    return readOrchestrationChildArchive(input.childThreadId);
+    return owners.orchestration.readChildHistoryDetail(input.childThreadId);
   });
   ipcMain.handle(desktopIpc.createScheduledTask, (event, rawInput: unknown) =>
     run(event, () =>

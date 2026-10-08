@@ -51,6 +51,7 @@ import {
   type DesktopAppViewState,
   type ForkThreadInput,
   type NotificationPreferences,
+  type OrchestrationChildHistory,
   type QueuedComposerMessage,
   type RemoveWorktreeInput,
   type SendChildThreadFollowUpInput,
@@ -1341,6 +1342,10 @@ export class DesktopAppStore {
     const state = await this.orchestrationOwner.setChildSupervisionLoopGate(input);
     this.scheduleOrchestrationSupervision();
     return state;
+  }
+
+  readChildHistoryDetail(childThreadId: string): Promise<OrchestrationChildHistory> {
+    return this.orchestrationOwner.readChildHistoryDetail(childThreadId);
   }
 
   async createScheduledTask(input: CreateScheduledTaskInput): Promise<DesktopAppState> {

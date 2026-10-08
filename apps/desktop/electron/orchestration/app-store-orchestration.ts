@@ -15,6 +15,7 @@ import type { PiSdkDriver } from "@pi-gui/pi-sdk-driver";
 import type {
   DesktopAppState,
   OrchestrationEvidenceRecord,
+  OrchestrationChildHistory,
   OrchestrationChildThread,
   OrchestrationChildThreadStatus,
   OrchestrationChildTranscriptMessage,
@@ -31,6 +32,7 @@ import type { RefreshStateOptions } from "../application/refresh-state-options";
 import {
   isFinishedOrchestrationChild,
   nextSupervisionRunAt,
+  readOrchestrationChildArchive,
   supervisionIntervalMs,
   toPersistedOrchestrationChildren,
 } from "./orchestration-history";
@@ -58,8 +60,6 @@ import type {
 
 const CHILD_TITLE_LIMIT = 56;
 const MAX_CHILD_TRANSCRIPT_MESSAGES = 40;
-/** Enough of the child's own timeline for the parent's sub-agent block, bounded like its transcript. */
-const MAX_CHILD_TIMELINE_ITEMS = 60;
 const MAX_READ_THREAD_MESSAGES = 60;
 const MAX_EVIDENCE_RECORDS_PER_CHILD = 80;
 const CHILD_START_TIMEOUT_MS = 10_000;
@@ -123,6 +123,7 @@ export interface OrchestrationOwner {
   setChildSupervisionLoopGate(input: SetChildSupervisionLoopInput): Promise<DesktopAppState>;
   hydrateOrchestrationChildren(): Promise<void>;
   hydrateVisibleOrchestrationChildren(): Promise<void>;
+  readChildHistoryDetail(childThreadId: string): Promise<OrchestrationChildHistory>;
   projectOrchestrationChildren(
     children?: readonly OrchestrationChildThread[],
   ): readonly OrchestrationChildThread[];
@@ -157,6 +158,7 @@ export function createOrchestrationOwner(store: OrchestrationOwnerHost): Orchest
     setChildSupervisionLoopGate: (input) => setChildSupervisionLoopGate(store, input),
     hydrateOrchestrationChildren: () => hydrateOrchestrationChildren(store),
     hydrateVisibleOrchestrationChildren: () => hydrateVisibleOrchestrationChildren(store),
+    readChildHistoryDetail: (childThreadId) => readChildHistoryDetail(store, childThreadId),
     projectOrchestrationChildren: (children) => projectOrchestrationChildren(store, children),
     projectOrchestrationChildrenForSession: (sessionRef) =>
       projectOrchestrationChildrenForSession(store, sessionRef),
@@ -258,8 +260,6 @@ async function createChildThreadRecord(
       goal: prompt,
       status,
       latestTranscript: session.preview || prompt,
-      transcript: [],
-      timeline: [],
       evidence: [
         {
           id: evidenceId("created", input.sourceToolCallId ?? childRef.sessionId),
@@ -275,6 +275,7 @@ async function createChildThreadRecord(
           createdAt: now,
         },
       ],
+      actionCount: 0,
       supervisionLoop: createSupervisionLoop(status, now),
       createdAt: now,
       updatedAt: session.updatedAt || now,
@@ -741,6 +742,34 @@ function projectOrchestrationChildrenForSession(
   );
 }
 
+/**
+ * Read one child's full history on demand, when its card is expanded. The evidence comes from the
+ * archive; the recent timeline is read from the child's session (loading it if needed), because the
+ * app state deliberately holds only the card's summary.
+ */
+async function readChildHistoryDetail(
+  store: OrchestrationOwnerHost,
+  childThreadId: string,
+): Promise<OrchestrationChildHistory> {
+  const archive = await readOrchestrationChildArchive(childThreadId);
+  const child = store
+    .orchestrationState()
+    .orchestrationChildren.find((entry) => entry.id === childThreadId);
+  let timeline: readonly TimelineTranscriptItem[] = [];
+  if (child?.childSessionId) {
+    const childRef = childSessionRef(child);
+    if (!store.isTranscriptLoaded(childRef)) {
+      await store.ensureSessionReady(childRef).catch(() => undefined);
+    }
+    timeline = recentTranscriptItems(store.transcriptFor(childRef));
+  }
+  return {
+    ...(archive?.snapshot ? { snapshot: archive.snapshot } : {}),
+    evidence: archive?.evidence ?? [],
+    timeline,
+  };
+}
+
 function reconcileDueSupervisionLoops(
   store: OrchestrationOwnerHost,
   now: Date = new Date(),
@@ -1044,7 +1073,7 @@ function markInitialPromptDeliveryFailed(
                 childSessionId: child.childSessionId,
                 createdAt: now,
               },
-            ]),
+            ]).slice(0, 1),
             updatedAt: now,
           }
         : child,
@@ -1062,27 +1091,27 @@ function projectOrchestrationChild(
     return child;
   }
   const childRef = childSessionRef(child);
-  const key = sessionKey(childRef);
   const session = store.sessionFromState(childRef);
   const rawTranscript = recentTranscriptItems(store.transcriptFor(childRef));
-  const transcript = toChildTranscript(rawTranscript, MAX_CHILD_TRANSCRIPT_MESSAGES);
-  const timeline = rawTranscript.slice(-MAX_CHILD_TIMELINE_ITEMS);
   const latestTranscript = session?.preview || previewFromTranscript(rawTranscript) || child.goal;
   const updatedAt = latestSessionActivityAt(session?.updatedAt ?? child.updatedAt, rawTranscript);
   const status = session ? toOrchestrationStatus(session.status, childRef, store) : child.status;
+  const evidence = mergeEvidenceRecords(child.evidence, [
+    ...evidenceFromChildTranscript(child, rawTranscript),
+    ...parentEvidence,
+    ...blockerEvidenceFromChildStatus(child, status, updatedAt),
+  ]);
 
   return {
     ...child,
     title: session?.title || child.title,
     status,
     latestTranscript,
-    transcript,
-    timeline,
-    evidence: mergeEvidenceRecords(child.evidence, [
-      ...evidenceFromChildTranscript(child, rawTranscript),
-      ...parentEvidence,
-      ...blockerEvidenceFromChildStatus(child, status, updatedAt),
-    ]),
+    actionCount: rawTranscript.filter((item) => item.kind === "tool").length,
+    // The card paints only the newest record; the rest of the log lives in the child's archive.
+    evidence: [...evidence]
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+      .slice(0, 1),
     supervisionLoop: projectSupervisionLoop(child.supervisionLoop, status, nowIso),
     updatedAt,
   };

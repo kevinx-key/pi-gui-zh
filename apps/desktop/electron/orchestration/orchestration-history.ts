@@ -125,11 +125,8 @@ export function toPersistedOrchestrationChild(
     goal: persistedText(child.goal),
     status: child.status,
     latestTranscript: persistedText(child.latestTranscript),
-    // A child with a session re-projects both from that session's cached transcript on load; a
-    // legacy record without one keeps its transcript, which is the only copy that exists.
-    transcript: child.childSessionId ? [] : child.transcript,
-    timeline: child.childSessionId ? [] : child.timeline,
     evidence: newestEvidence(child.evidence),
+    actionCount: child.actionCount ?? 0,
     supervisionLoop: child.supervisionLoop,
     createdAt: child.createdAt,
     updatedAt: child.updatedAt,
@@ -275,8 +272,6 @@ function childSnapshot(child: OrchestrationChildThread): OrchestrationChildHisto
     childSessionId: child.childSessionId,
     createdAt: child.createdAt,
     updatedAt: child.updatedAt,
-    transcript: child.transcript,
-    timeline: child.timeline,
   };
 }
 

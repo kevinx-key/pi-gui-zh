@@ -511,8 +511,8 @@ function sameChildThread(
     prev.status === next.status &&
     prev.title === next.title &&
     prev.latestTranscript === next.latestTranscript &&
-    prev.timeline.length === next.timeline.length &&
-    prev.timeline.at(-1)?.id === next.timeline.at(-1)?.id
+    prev.actionCount === next.actionCount &&
+    prev.evidence[0]?.id === next.evidence[0]?.id
   );
 }
 

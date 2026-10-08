@@ -38,7 +38,7 @@ import type {
   ForkThreadInput,
   ModelSettingsScopeMode,
   NotificationPreferences,
-  OrchestrationChildArchive,
+  OrchestrationChildHistory,
   ReadOrchestrationChildHistoryInput,
   RemoveWorktreeInput,
   SendChildThreadFollowUpInput,
@@ -768,10 +768,10 @@ export interface PiDesktopApi {
   forkThread(input: ForkThreadInput): Promise<DesktopAppState>;
   sendChildThreadFollowUp(input: SendChildThreadFollowUpInput): Promise<DesktopAppState>;
   setChildSupervisionLoop(input: SetChildSupervisionLoopInput): Promise<DesktopAppState>;
-  /** Reads a child's archived evidence log; `undefined` when the child has no archive file. */
+  /** Reads a child's full history — archived evidence plus its live recent timeline — on demand. */
   readOrchestrationChildHistory(
     input: ReadOrchestrationChildHistoryInput,
-  ): Promise<OrchestrationChildArchive | undefined>;
+  ): Promise<OrchestrationChildHistory | undefined>;
   createScheduledTask(input: CreateScheduledTaskInput): Promise<DesktopAppState>;
   updateScheduledTask(id: string, patch: UpdateScheduledTaskInput): Promise<DesktopAppState>;
   deleteScheduledTask(id: string): Promise<DesktopAppState>;

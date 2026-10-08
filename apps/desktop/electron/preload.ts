@@ -62,7 +62,7 @@ import type {
   DesktopAppState,
   ForkThreadInput,
   NotificationPreferences,
-  OrchestrationChildArchive,
+  OrchestrationChildHistory,
   ReadOrchestrationChildHistoryInput,
   RemoveWorktreeInput,
   SendChildThreadFollowUpInput,
@@ -268,7 +268,7 @@ contextBridge.exposeInMainWorld("piApp", {
     ipcRenderer.invoke(desktopIpc.setChildSupervisionLoop, input) as Promise<DesktopAppState>,
   readOrchestrationChildHistory: (input: ReadOrchestrationChildHistoryInput) =>
     ipcRenderer.invoke(desktopIpc.readOrchestrationChildHistory, input) as Promise<
-      OrchestrationChildArchive | undefined
+      OrchestrationChildHistory | undefined
     >,
   createScheduledTask: (input: CreateScheduledTaskInput) =>
     ipcRenderer.invoke(desktopIpc.createScheduledTask, input) as Promise<DesktopAppState>,

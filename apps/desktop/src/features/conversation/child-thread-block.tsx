@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import type {
-  OrchestrationChildArchive,
   OrchestrationChildThread,
   OrchestrationChildThreadStatus,
   OrchestrationEvidenceRecord,
   OrchestrationEvidenceStatus,
+  TimelineTranscriptItem,
 } from "../../../contracts/desktop-state";
 import { t } from "../../../contracts/i18n";
 import { ChevronRightIcon } from "../../ui/icons";
@@ -52,57 +52,25 @@ function evidenceStatusLabel(status: OrchestrationEvidenceStatus): string {
 
 /**
  * The child's evidence, drawn under its card. The state holds only the newest record, so the card
- * paints that one for free; the rest of the log lives in the child's archive file and is read over
- * IPC only when the operator expands the card, which keeps a screen full of children from firing a
+ * paints that one for free; the rest of the log lives in the child's archive and is read over IPC
+ * only when the operator expands the card, which keeps a screen full of children from firing a
  * burst of archive reads at startup.
  */
 function ChildThreadEvidence({
-  childThreadId,
   stateEvidence,
+  archivedEvidence,
   expanded,
+  loading,
+  unavailable,
 }: {
-  readonly childThreadId: string;
   readonly stateEvidence: readonly OrchestrationEvidenceRecord[];
+  readonly archivedEvidence: readonly OrchestrationEvidenceRecord[];
   readonly expanded: boolean;
+  readonly loading: boolean;
+  readonly unavailable: boolean;
 }) {
   const tr = useT();
-  const [archive, setArchive] = useState<OrchestrationChildArchive | undefined>(undefined);
-  const [unavailable, setUnavailable] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    if (!expanded) {
-      return;
-    }
-    const read = window.piApp?.readOrchestrationChildHistory;
-    if (!read) {
-      setUnavailable(true);
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    read({ childThreadId }).then(
-      (result) => {
-        if (cancelled) {
-          return;
-        }
-        setArchive(result);
-        setUnavailable(!result);
-        setLoading(false);
-      },
-      () => {
-        if (!cancelled) {
-          setUnavailable(true);
-          setLoading(false);
-        }
-      },
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [childThreadId, expanded]);
-
-  const archived = archive?.evidence ?? [];
+  const archived = expanded ? archivedEvidence : [];
   const records = archived.length > 0 ? archived : stateEvidence;
   const limit = expanded ? MAX_CHILD_EVIDENCE_ITEMS : 1;
   const visibleRecords = records.slice(-limit);
@@ -156,10 +124,17 @@ function ChildThreadEvidence({
   );
 }
 
+/** A child's on-demand history: recent timeline plus the archived evidence log. */
+type ChildHistory = {
+  readonly timeline: readonly TimelineTranscriptItem[];
+  readonly evidence: readonly OrchestrationEvidenceRecord[];
+};
+
 /**
  * A delegated child thread, drawn inside the parent's timeline under the tool call that started it.
  * The child's own session keeps running and stays reachable from here; this is what the parent
- * window shows instead of a second thread in the sidebar.
+ * window shows instead of a second thread in the sidebar. The card carries only a summary — its
+ * recent timeline and full evidence log are read over IPC when the operator expands it.
  */
 export function ChildThreadBlock({
   thread,
@@ -171,8 +146,44 @@ export function ChildThreadBlock({
   const tr = useT();
   const [expanded, setExpanded] = useState(false);
   const [expandedToolCallIds, setExpandedToolCallIds] = useState<ReadonlySet<string>>(new Set());
-  const items = thread.timeline.slice(-MAX_CHILD_BLOCK_ITEMS);
-  const actionCount = thread.timeline.filter((item) => item.kind === "tool").length;
+  const [history, setHistory] = useState<ChildHistory | undefined>(undefined);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyUnavailable, setHistoryUnavailable] = useState(false);
+
+  useEffect(() => {
+    if (!expanded) {
+      return;
+    }
+    const read = window.piApp?.readOrchestrationChildHistory;
+    if (!read) {
+      setHistoryUnavailable(true);
+      return;
+    }
+    let cancelled = false;
+    setHistoryLoading(true);
+    read({ childThreadId: thread.id }).then(
+      (result) => {
+        if (cancelled) {
+          return;
+        }
+        setHistory(result ? { timeline: result.timeline, evidence: result.evidence } : undefined);
+        setHistoryUnavailable(!result);
+        setHistoryLoading(false);
+      },
+      () => {
+        if (!cancelled) {
+          setHistoryUnavailable(true);
+          setHistoryLoading(false);
+        }
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [thread.id, expanded]);
+
+  const items = (history?.timeline ?? []).slice(-MAX_CHILD_BLOCK_ITEMS);
+  const actionCount = thread.actionCount;
 
   const toggleToolCall = (callId: string) => {
     setExpandedToolCallIds((current) => {
@@ -237,6 +248,8 @@ export function ChildThreadBlock({
               />
             ))}
           </div>
+        ) : historyLoading ? (
+          <p className="child-thread__empty">{tr("Loading history…")}</p>
         ) : (
           <p className="child-thread__empty">{tr("No messages yet.")}</p>
         )
@@ -244,9 +257,11 @@ export function ChildThreadBlock({
         <p className="child-thread__preview">{thread.latestTranscript}</p>
       ) : null}
       <ChildThreadEvidence
-        childThreadId={thread.id}
+        archivedEvidence={history?.evidence ?? []}
         expanded={expanded}
+        loading={historyLoading}
         stateEvidence={thread.evidence}
+        unavailable={historyUnavailable}
       />
     </section>
   );

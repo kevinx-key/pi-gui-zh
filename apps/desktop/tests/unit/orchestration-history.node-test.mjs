@@ -152,8 +152,8 @@ test("a persisted child keeps its state machine, not its history", async () => {
 
   assert.equal(persisted.evidence.length, 1);
   assert.equal(persisted.evidence[0].id, `worker:message-${EVIDENCE_COUNT - 1}`);
-  assert.deepEqual(persisted.transcript, []);
-  assert.deepEqual(persisted.timeline, []);
+  assert.equal(persisted.transcript, undefined, "the card carries no transcript in the state");
+  assert.equal(persisted.timeline, undefined, "the card carries no timeline in the state");
   assert.ok(persisted.goal.length <= 240, `goal stays a label, got ${persisted.goal.length}`);
   assert.ok(persisted.latestTranscript.length <= 240);
   assert.equal(persisted.status, "running");
@@ -230,8 +230,8 @@ test("a finished child is archived once and never wakes the app again", async ()
 
   const archive = await readOrchestrationChildArchive(finished.id);
   assert.equal(archive.snapshot?.status, "complete");
-  assert.equal(archive.snapshot?.transcript.length, 40);
-  assert.equal(archive.snapshot?.timeline.length, 60);
+  assert.equal(archive.snapshot?.transcript, undefined, "the snapshot carries no history");
+  assert.equal(archive.snapshot?.timeline, undefined);
   assert.equal(await archiveLineCount(finished.id), EVIDENCE_COUNT + 1);
 });
 
@@ -328,8 +328,8 @@ test("a trimmed finished child still reads back its whole evidence log", async (
   assert.equal(archive.evidence.at(-1).id, "worker:message-0");
   assert.equal(archive.snapshot?.id, card.id);
   assert.equal(archive.snapshot?.status, "complete");
-  assert.equal(archive.snapshot?.transcript.length, 40);
-  assert.equal(archive.snapshot?.timeline.length, 60);
+  assert.equal(archive.snapshot?.transcript, undefined, "the snapshot carries no history");
+  assert.equal(archive.snapshot?.timeline, undefined);
 
   // A child with no archive file is `undefined`, which is what the card shows as "no history".
   assert.equal(await readOrchestrationChildArchive("child-never-archived"), undefined);
@@ -347,13 +347,11 @@ test("a finished child is trimmed to its card on load while a running one is lef
   // The finished child keeps its card, and only its card: history moved to the archive.
   assert.equal(doneAfter.status, "complete");
   assert.equal(doneAfter.evidence.length, 1, "only the newest evidence stays in memory");
-  assert.deepEqual(doneAfter.transcript, [], "the transcript is re-projected from the session");
-  assert.deepEqual(doneAfter.timeline, [], "the timeline is re-projected from the session");
+  assert.equal(doneAfter.transcript, undefined, "the card carries no transcript");
+  assert.equal(doneAfter.timeline, undefined, "the card carries no timeline");
   await flushOrchestrationHistory();
   assert.equal(await archiveLineCount("child-done"), EVIDENCE_COUNT + 1, "history is on disk");
 
   // A restart must not disturb work in flight.
   assert.equal(liveAfter.evidence.length, EVIDENCE_COUNT, "a running child keeps its records");
-  assert.equal(liveAfter.transcript.length, 40);
-  assert.equal(liveAfter.timeline.length, 60);
 });
